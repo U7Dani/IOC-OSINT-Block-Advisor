@@ -16,23 +16,27 @@ from modules.utils import load_allowlist
 BLOCKING_DECISIONS = {"BLOCK_DOMAIN", "BLOCK_URL_EXACT", "BLOCK_SENDER_EXACT", "BLOCK_HASH"}
 
 COLORS = {
-    "bg": "#07111f",
-    "panel": "#0f1b2d",
-    "panel_alt": "#132238",
-    "border": "#26384f",
-    "text": "#e5edf7",
-    "muted": "#9fb0c5",
-    "blue": "#2f80ed",
-    "blue_dark": "#1d4f8f",
-    "cyan": "#37d5ff",
+    "bg": "#09172f",
+    "bg2": "#0d2450",
+    "panel": "#10203a",
+    "panel_alt": "#142642",
+    "panel_lift": "#162f54",
+    "border": "#355778",
+    "text": "#f1f7ff",
+    "muted": "#b8c7dc",
+    "blue": "#1d6fff",
+    "blue_dark": "#143f84",
+    "cyan": "#22d3ee",
+    "violet": "#7c3aed",
+    "magenta": "#d946ef",
     "red": "#ff6b7a",
-    "red_bg": "#3a1821",
+    "red_bg": "#3b1828",
     "yellow": "#ffd166",
-    "yellow_bg": "#342817",
+    "yellow_bg": "#3b2c14",
     "green": "#74d99f",
-    "green_bg": "#163323",
-    "observed_bg": "#162a40",
-    "selection": "#1f6feb",
+    "green_bg": "#153826",
+    "observed_bg": "#173452",
+    "selection": "#1d6fff",
 }
 
 COLUMNS = (
@@ -88,6 +92,7 @@ class App(tk.Tk):
         self.geometry("1600x960")
         self.minsize(1240, 790)
         self.configure(bg=COLORS["bg"])
+        self.background_canvas: tk.Canvas | None = None
         self.results = []
         self.result_by_iid: dict[str, object] = {}
         self.selected_result = None
@@ -96,12 +101,13 @@ class App(tk.Tk):
 
     def _build_ui(self) -> None:
         self.setup_styles()
+        self.create_gradient_background(self)
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
 
         self.create_header()
 
-        top = ttk.Frame(self, padding=(14, 12, 14, 6), style="App.TFrame")
+        top = ttk.Frame(self, padding=(18, 14, 18, 7), style="App.TFrame")
         top.grid(row=1, column=0, sticky="nsew")
         top.columnconfigure(0, weight=3)
         top.columnconfigure(1, weight=2)
@@ -111,20 +117,20 @@ class App(tk.Tk):
         self.iocs_text = self._build_text_panel(top, "IOCs observados", 1)
         self._build_summary_panel(top, 2)
 
-        center = ttk.Frame(self, padding=(14, 6, 14, 6), style="App.TFrame")
+        center = ttk.Frame(self, padding=(18, 7, 18, 7), style="App.TFrame")
         center.grid(row=2, column=0, sticky="nsew")
         center.columnconfigure(0, weight=1)
         center.rowconfigure(0, weight=1)
         self._build_table(center)
 
-        bottom = ttk.Frame(self, padding=(14, 6, 14, 10), style="App.TFrame")
+        bottom = ttk.Frame(self, padding=(18, 7, 18, 12), style="App.TFrame")
         bottom.grid(row=3, column=0, sticky="nsew")
         bottom.columnconfigure(0, weight=3)
         bottom.columnconfigure(1, weight=1)
         self._build_detail_panel(bottom)
         self._build_actions_panel(bottom)
 
-        status_bar = ttk.Frame(self, padding=(14, 7), style="Status.TFrame")
+        status_bar = ttk.Frame(self, padding=(18, 8), style="Status.TFrame")
         status_bar.grid(row=4, column=0, sticky="ew")
         status_bar.columnconfigure(0, weight=1)
         self.status = tk.StringVar(value="Listo.")
@@ -137,9 +143,9 @@ class App(tk.Tk):
         style.theme_use("clam")
 
         style.configure(".", font=("Segoe UI", 9), background=COLORS["bg"], foreground=COLORS["text"])
-        style.configure("App.TFrame", background=COLORS["bg"])
+        style.configure("App.TFrame", background="#0b1d3c")
         style.configure("Header.TFrame", background=COLORS["bg"])
-        style.configure("Status.TFrame", background="#081522")
+        style.configure("Status.TFrame", background="#0a1932")
         style.configure("Card.TLabelframe", background=COLORS["panel"], bordercolor=COLORS["border"], relief="solid")
         style.configure(
             "Card.TLabelframe.Label",
@@ -148,7 +154,7 @@ class App(tk.Tk):
             font=("Segoe UI", 10, "bold"),
         )
         style.configure("CardBody.TFrame", background=COLORS["panel"])
-        style.configure("Metric.TFrame", background=COLORS["panel_alt"], relief="solid", borderwidth=1)
+        style.configure("Metric.TFrame", background=COLORS["panel_lift"], relief="solid", borderwidth=1)
 
         style.configure("Title.TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Segoe UI", 20, "bold"))
         style.configure("Subtitle.TLabel", background=COLORS["bg"], foreground=COLORS["muted"], font=("Segoe UI", 10))
@@ -156,21 +162,21 @@ class App(tk.Tk):
         style.configure("Field.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 9, "bold"))
         style.configure("Value.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 9))
         style.configure("HighlightValue.TLabel", background=COLORS["panel"], foreground=COLORS["cyan"], font=("Segoe UI", 10, "bold"))
-        style.configure("Status.TLabel", background="#081522", foreground=COLORS["cyan"], font=("Segoe UI", 9, "bold"))
-        style.configure("Rule.TLabel", background="#081522", foreground=COLORS["muted"], font=("Segoe UI", 9))
+        style.configure("Status.TLabel", background="#0a1932", foreground=COLORS["cyan"], font=("Segoe UI", 9, "bold"))
+        style.configure("Rule.TLabel", background="#0a1932", foreground=COLORS["muted"], font=("Segoe UI", 9))
         style.configure("SmallMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 8))
-        style.configure("SummaryLabel.TLabel", background=COLORS["panel_alt"], foreground=COLORS["muted"], font=("Segoe UI", 8, "bold"))
-        style.configure("SummaryTotal.TLabel", background=COLORS["panel_alt"], foreground=COLORS["text"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummaryBlock.TLabel", background=COLORS["panel_alt"], foreground=COLORS["red"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummaryReview.TLabel", background=COLORS["panel_alt"], foreground=COLORS["yellow"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummarySafe.TLabel", background=COLORS["panel_alt"], foreground=COLORS["green"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummaryScore.TLabel", background=COLORS["panel_alt"], foreground=COLORS["cyan"], font=("Segoe UI", 19, "bold"))
+        style.configure("SummaryLabel.TLabel", background=COLORS["panel_lift"], foreground=COLORS["muted"], font=("Segoe UI", 8, "bold"))
+        style.configure("SummaryTotal.TLabel", background=COLORS["panel_lift"], foreground=COLORS["blue"], font=("Segoe UI", 19, "bold"))
+        style.configure("SummaryBlock.TLabel", background=COLORS["panel_lift"], foreground=COLORS["red"], font=("Segoe UI", 19, "bold"))
+        style.configure("SummaryReview.TLabel", background=COLORS["panel_lift"], foreground=COLORS["yellow"], font=("Segoe UI", 19, "bold"))
+        style.configure("SummarySafe.TLabel", background=COLORS["panel_lift"], foreground=COLORS["green"], font=("Segoe UI", 19, "bold"))
+        style.configure("SummaryScore.TLabel", background=COLORS["panel_lift"], foreground=COLORS["cyan"], font=("Segoe UI", 19, "bold"))
 
         style.configure("TScrollbar", background=COLORS["panel_alt"], troughcolor=COLORS["bg"], bordercolor=COLORS["border"], arrowcolor=COLORS["text"])
         style.configure(
             "Treeview",
-            background="#0b1626",
-            fieldbackground="#0b1626",
+            background="#0d1b31",
+            fieldbackground="#0d1b31",
             foreground=COLORS["text"],
             bordercolor=COLORS["border"],
             rowheight=28,
@@ -179,22 +185,88 @@ class App(tk.Tk):
         style.map("Treeview", background=[("selected", COLORS["selection"])], foreground=[("selected", "#ffffff")])
         style.configure(
             "Treeview.Heading",
-            background="#14243a",
+            background="#16345c",
             foreground=COLORS["text"],
             bordercolor=COLORS["border"],
             relief="flat",
             font=("Segoe UI", 9, "bold"),
         )
-        style.map("Treeview.Heading", background=[("active", "#1a3353")])
+        style.map("Treeview.Heading", background=[("active", "#1d477a")])
 
-        self._configure_button_style("Primary.TButton", COLORS["blue"], "#3b8cff")
-        self._configure_button_style("Secondary.TButton", "#243a55", "#2f4d72")
-        self._configure_button_style("Dark.TButton", "#18263a", "#24344f")
-        self._configure_button_style("Copy.TButton", "#235d9f", "#2f75c5")
-        self._configure_button_style("Danger.TButton", "#7d2635", "#a83246")
+        self._configure_button_style("Primary.TButton", COLORS["blue"], "#2f8bff")
+        self._configure_button_style("Secondary.TButton", "#21456f", "#2a5c95")
+        self._configure_button_style("Dark.TButton", "#1b2d49", "#254066")
+        self._configure_button_style("Copy.TButton", "#1769aa", "#2188d6")
+        self._configure_button_style("Danger.TButton", "#8a2444", "#c33164")
 
         style.configure("TCheckbutton", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 9))
         style.map("TCheckbutton", background=[("active", COLORS["panel"])], foreground=[("disabled", COLORS["muted"])])
+
+    def create_gradient_background(self, parent: tk.Tk) -> None:
+        self.background_canvas = tk.Canvas(parent, highlightthickness=0, bd=0, bg=COLORS["bg"])
+        self.background_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        self.background_canvas.tk.call("lower", self.background_canvas._w)
+        parent.bind("<Configure>", self.on_resize_background)
+
+    def on_resize_background(self, event) -> None:
+        if event.widget is self and self.background_canvas:
+            self.draw_aurora_background(self.background_canvas, event.width, event.height)
+
+    def draw_aurora_background(self, canvas: tk.Canvas, width: int, height: int) -> None:
+        if width <= 1 or height <= 1:
+            return
+        canvas.delete("aurora")
+        steps = max(80, min(180, height // 5))
+        for index in range(steps):
+            ratio = index / max(steps - 1, 1)
+            color = self._blend("#09172f", "#0d2450", ratio)
+            y0 = int(index * height / steps)
+            y1 = int((index + 1) * height / steps) + 1
+            canvas.create_rectangle(0, y0, width, y1, fill=color, outline="", tags="aurora")
+
+        glow_shapes = (
+            (-0.12, -0.20, 0.55, 0.55, "#1d6fff"),
+            (0.46, -0.18, 1.12, 0.46, "#7c3aed"),
+            (0.70, 0.18, 1.18, 0.84, "#d946ef"),
+            (-0.18, 0.35, 0.42, 1.08, "#22d3ee"),
+            (0.20, 0.58, 0.78, 1.18, "#123f84"),
+        )
+        for x0, y0, x1, y1, color in glow_shapes:
+            canvas.create_oval(
+                int(width * x0),
+                int(height * y0),
+                int(width * x1),
+                int(height * y1),
+                fill=color,
+                outline="",
+                stipple="gray75",
+                tags="aurora",
+            )
+
+        for offset, color in ((0.25, "#22d3ee"), (0.38, "#7c3aed"), (0.52, "#d946ef")):
+            y = int(height * offset)
+            canvas.create_line(
+                -40,
+                y,
+                int(width * 0.22),
+                y - 40,
+                int(width * 0.55),
+                y + 20,
+                width + 40,
+                y - 30,
+                smooth=True,
+                fill=color,
+                width=2,
+                stipple="gray50",
+                tags="aurora",
+            )
+
+    @staticmethod
+    def _blend(start: str, end: str, ratio: float) -> str:
+        start_rgb = tuple(int(start[i : i + 2], 16) for i in (1, 3, 5))
+        end_rgb = tuple(int(end[i : i + 2], 16) for i in (1, 3, 5))
+        mixed = tuple(int(a + (b - a) * ratio) for a, b in zip(start_rgb, end_rgb))
+        return f"#{mixed[0]:02x}{mixed[1]:02x}{mixed[2]:02x}"
 
     def _configure_button_style(self, style_name: str, bg: str, active_bg: str) -> None:
         style = ttk.Style(self)
@@ -224,7 +296,21 @@ class App(tk.Tk):
             text="Herramienta OSINT para análisis y recomendación de bloqueo de IOCs",
             style="Subtitle.TLabel",
         ).grid(row=1, column=1, sticky="w")
-        ttk.Separator(header, orient="horizontal").grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        accent = tk.Canvas(header, height=3, highlightthickness=0, bd=0, bg=COLORS["bg"])
+        accent.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        accent.bind("<Configure>", self._draw_header_accent)
+
+    def _draw_header_accent(self, event) -> None:
+        canvas = event.widget
+        canvas.delete("accent")
+        width = max(event.width, 1)
+        segments = 120
+        for index in range(segments):
+            ratio = index / max(segments - 1, 1)
+            color = self._blend(COLORS["cyan"], COLORS["magenta"], ratio)
+            x0 = int(index * width / segments)
+            x1 = int((index + 1) * width / segments) + 1
+            canvas.create_rectangle(x0, 0, x1, 3, fill=color, outline="", tags="accent")
 
     def create_card(self, parent: ttk.Frame, title: str) -> ttk.LabelFrame:
         return ttk.LabelFrame(parent, text=title, style="Card.TLabelframe")
