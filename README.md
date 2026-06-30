@@ -1,5 +1,7 @@
+<img width="1597" height="960" alt="Captura de pantalla 2026-06-30 161125" src="https://github.com/user-attachments/assets/03b64f6a-27c3-4f39-b6ae-bc3ad2152c82" />
+
 <p align="center">
-  <img src="assets/logo.svg" width="180" alt="IOC OSINT Block Advisor logo">
+  <img src="logo.svg" width="180" alt="IOC OSINT Block Advisor logo">
 </p>
 
 <h1 align="center">IOC OSINT Block Advisor</h1>
