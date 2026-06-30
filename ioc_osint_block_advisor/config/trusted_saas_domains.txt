@@ -1,0 +1,16 @@
+zoom.us
+events.zoom.us
+linkedin.com
+microsoft.com
+office.com
+office365.com
+forms.office.com
+sharepoint.com
+outlook.com
+google.com
+gmail.com
+highspot.com
+meta.highspot.com
+salesforce.com
+sendgrid.net
+mailchimp.com

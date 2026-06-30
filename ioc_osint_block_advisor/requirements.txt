@@ -1,0 +1,6 @@
+requests
+python-dotenv
+dnspython
+tldextract
+pandas
+pytest

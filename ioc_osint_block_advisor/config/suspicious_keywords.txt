@@ -1,0 +1,17 @@
+login
+sso
+secure
+verify
+verification
+auth
+account
+meta
+microsoft
+wallet
+bank
+payment
+signin
+credential
+credentials
+password
+portal

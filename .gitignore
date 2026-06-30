@@ -1,0 +1,15 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+*.log
+logs/
+build/
+dist/
+*.spec
+
+ioc_osint_block_advisor/output/*
+!ioc_osint_block_advisor/output/.gitkeep
