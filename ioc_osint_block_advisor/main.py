@@ -3,12 +3,14 @@ from __future__ import annotations
 import queue
 import threading
 import tkinter as tk
+from types import SimpleNamespace
 from tkinter import messagebox, ttk
 
-from modules.classifier import classify_many
+from modules.classifier import classify_ioc
 from modules.decision_engine import decide_many
 from modules.exporter import export_results
 from modules.extractor import extract_iocs
+from modules.fang import defang, refang
 from modules.osint_runner import collect as collect_osint
 from modules.utils import load_allowlist
 
@@ -474,14 +476,50 @@ class App(tk.Tk):
     def _analyze_worker(self, context: str, iocs: str, use_osint: bool) -> None:
         try:
             extracted = extract_iocs(context, iocs)
-            classified = classify_many(extracted, context, load_allowlist())
-            if use_osint:
-                for item in classified:
-                    collect_osint(item)
-            decided = decide_many(classified)
+            allowlist = load_allowlist()
+            decided = []
+            for extracted_item in extracted:
+                try:
+                    item = classify_ioc(extracted_item, context, allowlist)
+                    if use_osint:
+                        collect_osint(item)
+                    decided.extend(decide_many([item]))
+                except Exception as exc:
+                    decided.append(self._fallback_review_item(extracted_item, exc))
             self.worker_queue.put(("ok", decided))
         except Exception as exc:
             self.worker_queue.put(("error", exc))
+
+    @staticmethod
+    def _fallback_review_item(extracted_item, exc: Exception):
+        value = refang(getattr(extracted_item, "refanged", "") or getattr(extracted_item, "original", ""))
+        safe_value = value or getattr(extracted_item, "original", "")
+        return SimpleNamespace(
+            original=getattr(extracted_item, "original", safe_value),
+            normalized=safe_value,
+            defanged=defang(safe_value) if safe_value else "",
+            source=getattr(extracted_item, "source", ""),
+            ioc_type="unknown",
+            domain="",
+            root_domain="",
+            subdomain="",
+            path="",
+            role="unknown",
+            is_allowlisted=False,
+            score=0,
+            osint_results=[
+                {
+                    "source": "local_parser",
+                    "status": "error",
+                    "score_delta": 0,
+                    "evidence": str(exc),
+                }
+            ],
+            decision="REVIEW",
+            recommended_action="Revisión manual",
+            reason="IOC no parseable automáticamente; requiere revisión manual",
+            false_positive_risk="Medio",
+        )
 
     def _poll_worker(self) -> None:
         try:

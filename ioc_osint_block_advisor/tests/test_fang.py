@@ -17,3 +17,11 @@ def test_refang_variants_and_defanged_email():
     assert refang("hxxp://example(.)com/a") == "http://example.com/a"
     assert refang("example[:]443") == "example:443"
     assert refang("j.richards@copromopro[.]biz") == "j.richards@copromopro.biz"
+
+
+def test_refang_bracket_colon_slash_variants():
+    assert refang("hxxps[:]//ptrvc[.]net/test") == "https://ptrvc.net/test"
+    assert refang("hxxp[:]//ptrvc{.}net[/]test") == "http://ptrvc.net/test"
+    assert refang("user[@]example[.]com") == "user@example.com"
+    assert normalize_url("hxxps[:]//ptrvc[.]net/test") == "https://ptrvc.net/test"
+    assert normalize_url("hxxps[://]events[.]zoom[.]us/e/view/test") == "https://events.zoom.us/e/view/test"

@@ -4,13 +4,23 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 
+_PROTOCOL_REPLACEMENTS = (
+    (re.compile(r"\bhxxps\s*(?:\[\s*:\s*\]//|\(\s*:\s*\)//|\{\s*:\s*\}//|\[\s*://\s*\]|\(\s*://\s*\)|\{\s*://\s*\}|://)", re.I), "https://"),
+    (re.compile(r"\bhxxp\s*(?:\[\s*:\s*\]//|\(\s*:\s*\)//|\{\s*:\s*\}//|\[\s*://\s*\]|\(\s*://\s*\)|\{\s*://\s*\}|://)", re.I), "http://"),
+)
+
 _DEFANG_REPLACEMENTS = (
-    (re.compile(r"hxxps\s*(?:\[\s*://\s*\]|\(\s*://\s*\)|://)", re.I), "https://"),
-    (re.compile(r"hxxp\s*(?:\[\s*://\s*\]|\(\s*://\s*\)|://)", re.I), "http://"),
     (re.compile(r"\[\s*:\s*\]"), ":"),
     (re.compile(r"\(\s*:\s*\)"), ":"),
     (re.compile(r"\[\s*\.\s*\]"), "."),
     (re.compile(r"\(\s*\.\s*\)"), "."),
+    (re.compile(r"\{\s*\.\s*\}"), "."),
+    (re.compile(r"\[\s*/\s*\]"), "/"),
+    (re.compile(r"\(\s*/\s*\)"), "/"),
+    (re.compile(r"\{\s*/\s*\}"), "/"),
+    (re.compile(r"\[\s*@\s*\]"), "@"),
+    (re.compile(r"\(\s*@\s*\)"), "@"),
+    (re.compile(r"\{\s*@\s*\}"), "@"),
     (re.compile(r"\s+dot\s+", re.I), "."),
     (re.compile(r"\bdot\b", re.I), "."),
 )
@@ -19,7 +29,11 @@ _DEFANG_REPLACEMENTS = (
 def refang(value: str) -> str:
     """Return a refanged IOC suitable for parsing and OSINT lookups."""
     result = (value or "").strip().strip("<>").strip()
+    for pattern, replacement in _PROTOCOL_REPLACEMENTS:
+        result = pattern.sub(replacement, result)
     for pattern, replacement in _DEFANG_REPLACEMENTS:
+        result = pattern.sub(replacement, result)
+    for pattern, replacement in _PROTOCOL_REPLACEMENTS:
         result = pattern.sub(replacement, result)
     result = re.sub(r"\s+", "", result)
     return result
