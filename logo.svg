@@ -1,0 +1,46 @@
+<svg width="720" height="720" viewBox="0 0 720 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.45"/>
+      <stop offset="38%" stop-color="#7c3aed" stop-opacity="0.28"/>
+      <stop offset="75%" stop-color="#09172f" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#050b16" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="shieldGrad" x1="160" y1="110" x2="560" y2="610" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="45%" stop-color="#1d6fff"/>
+      <stop offset="100%" stop-color="#d946ef"/>
+    </linearGradient>
+    <linearGradient id="innerGrad" x1="230" y1="170" x2="500" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#102a4d"/>
+      <stop offset="100%" stop-color="#07111f"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.13  0 0 0 0 0.83  0 0 0 0 0.93  0 0 0 0.85 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="pinkGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.85  0 0 0 0 0.27  0 0 0 0 0.94  0 0 0 0.65 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="720" height="720" rx="128" fill="#07111f"/>
+  <rect width="720" height="720" rx="128" fill="url(#bgGlow)"/>
+  <circle cx="560" cy="150" r="120" fill="#d946ef" opacity="0.16"/>
+  <circle cx="165" cy="530" r="170" fill="#22d3ee" opacity="0.12"/>
+  <path d="M87 217C181 143 268 139 360 189C455 241 553 243 638 178" stroke="#22d3ee" stroke-opacity="0.32" stroke-width="12" stroke-linecap="round"/>
+  <path d="M72 505C175 424 295 427 390 486C494 551 579 548 650 498" stroke="#d946ef" stroke-opacity="0.28" stroke-width="10" stroke-linecap="round"/>
+  <path d="M360 92L555 164V316C555 448 477 564 360 626C243 564 165 448 165 316V164L360 92Z" fill="url(#shieldGrad)" opacity="0.95" filter="url(#softGlow)"/>
+  <path d="M360 142L508 197V317C508 421 449 512 360 565C271 512 212 421 212 317V197L360 142Z" fill="url(#innerGrad)" stroke="#82f3ff" stroke-opacity="0.35" stroke-width="3"/>
+  <circle cx="330" cy="316" r="89" fill="#07111f" stroke="#22d3ee" stroke-width="18" filter="url(#softGlow)"/>
+  <path d="M390 376L468 454" stroke="#22d3ee" stroke-width="24" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M294 316L326 348L378 277" stroke="#7cfae9" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M465 255L512 255" stroke="#d946ef" stroke-width="14" stroke-linecap="round" filter="url(#pinkGlow)"/>
+  <path d="M489 232L489 279" stroke="#d946ef" stroke-width="14" stroke-linecap="round" filter="url(#pinkGlow)"/>
+  <path d="M225 453H305" stroke="#22d3ee" stroke-width="12" stroke-linecap="round" opacity="0.8"/>
+  <path d="M245 485H360" stroke="#7c3aed" stroke-width="12" stroke-linecap="round" opacity="0.9"/>
+  <path d="M302 516H426" stroke="#d946ef" stroke-width="12" stroke-linecap="round" opacity="0.75"/>
+  <text x="360" y="665" text-anchor="middle" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="46" font-weight="800" fill="#f1f7ff" letter-spacing="4">IOC ADVISOR</text>
+</svg>
