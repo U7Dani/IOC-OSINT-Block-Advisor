@@ -40,6 +40,10 @@ def load_allowlist() -> set[str]:
     return set(load_lines(CONFIG_DIR / "allowlist_domains.txt"))
 
 
+def load_trusted_saas() -> set[str]:
+    return set(load_lines(CONFIG_DIR / "trusted_saas_domains.txt"))
+
+
 def load_suspicious_keywords() -> set[str]:
     return set(load_lines(CONFIG_DIR / "suspicious_keywords.txt"))
 
@@ -53,6 +57,11 @@ def is_domain_or_subdomain(domain: str, candidate_parent: str) -> bool:
 def is_allowlisted(domain: str, allowlist: Iterable[str] | None = None) -> bool:
     allowlist_set = set(allowlist or load_allowlist())
     return any(is_domain_or_subdomain(domain, item) for item in allowlist_set)
+
+
+def is_trusted_saas(domain: str, trusted: Iterable[str] | None = None) -> bool:
+    trusted_set = set(trusted if trusted is not None else load_trusted_saas())
+    return any(is_domain_or_subdomain(domain, item) for item in trusted_set)
 
 
 def ensure_output_dir() -> Path:

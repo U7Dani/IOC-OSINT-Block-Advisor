@@ -37,9 +37,21 @@ def _write_lines(path: Path, values: list[str]) -> None:
 def _write_review(path: Path, items) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["ioc", "type", "role", "score", "reason", "false_positive_risk", "sources"])
+        writer.writerow(["ioc", "type", "role", "score", "confidence", "reason", "false_positive_risk", "evidence", "sources"])
         for item in items:
-            writer.writerow([item.normalized, item.ioc_type, item.role, item.score, item.reason, item.false_positive_risk, _sources(item)])
+            writer.writerow(
+                [
+                    item.normalized,
+                    item.ioc_type,
+                    item.role,
+                    item.score,
+                    getattr(item, "confidence", ""),
+                    item.reason,
+                    item.false_positive_risk,
+                    " | ".join(getattr(item, "evidence", []) or []),
+                    _sources(item),
+                ]
+            )
 
 
 def _full_report(items, context: str) -> str:
@@ -56,8 +68,8 @@ def _full_report(items, context: str) -> str:
         "",
         "## IOCs",
         "",
-        "| IOC original | Normalizado | Tipo | Rol | Score | Decisión | Acción | Riesgo FP | Motivo | Fuentes |",
-        "|---|---|---|---:|---:|---|---|---|---|---|",
+        "| IOC original | Normalizado | Tipo | Rol | Score | Confianza | Decisión | Acción | Valor para bloqueo | Riesgo FP | Motivo | Fuentes |",
+        "|---|---|---|---:|---:|---|---|---|---|---|---|---|",
     ]
     for item in items:
         lines.append(
@@ -70,8 +82,10 @@ def _full_report(items, context: str) -> str:
                     item.ioc_type,
                     item.role,
                     str(item.score),
+                    getattr(item, "confidence", ""),
                     item.decision,
                     item.recommended_action,
+                    getattr(item, "block_value", "") or "-",
                     item.false_positive_risk,
                     item.reason,
                     _sources(item),
@@ -79,9 +93,20 @@ def _full_report(items, context: str) -> str:
             )
             + " |"
         )
-    lines.extend(["", "## Evidencias OSINT", ""])
+    lines.extend(["", "## Evidencias y razonamiento por IOC", ""])
     for item in items:
         lines.append(f"### {item.normalized}")
+        for entry in getattr(item, "evidence", []) or []:
+            lines.append(f"- {entry}")
+        breakdown = getattr(item, "score_breakdown", []) or []
+        if breakdown:
+            lines.append(f"- Desglose de score: {', '.join(breakdown)}")
+        reasoning = getattr(item, "analyst_reasoning", "")
+        if reasoning:
+            lines.append("")
+            lines.append("```")
+            lines.append(reasoning)
+            lines.append("```")
         if not item.osint_results:
             lines.append("- Sin consultas OSINT externas.")
         for result in item.osint_results:
@@ -111,7 +136,11 @@ def _ticket_lines(items, include_action: bool = False) -> list[str]:
     lines = []
     for item in items:
         if include_action:
-            lines.append(f"- {item.normalized} | Tipo: {item.ioc_type} | Acción: {item.recommended_action} | Motivo: {item.reason}")
+            block_value = getattr(item, "block_value", "") or item.normalized
+            lines.append(
+                f"- {item.normalized} | Tipo: {item.ioc_type} | Acción: {item.recommended_action} | "
+                f"Valor para bloqueo: {block_value} | Riesgo FP: {item.false_positive_risk} | Motivo: {item.reason}"
+            )
         else:
             lines.append(f"- {item.normalized} | Motivo: {item.reason}")
     return lines

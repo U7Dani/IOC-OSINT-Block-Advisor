@@ -6,7 +6,7 @@ import tkinter as tk
 from types import SimpleNamespace
 from tkinter import messagebox, ttk
 
-from modules.classifier import classify_ioc
+from modules.classifier import classify_ioc, classify_many
 from modules.decision_engine import decide_many
 from modules.exporter import export_results
 from modules.extractor import extract_iocs
@@ -402,6 +402,7 @@ class App(tk.Tk):
             "risk": tk.StringVar(value="-"),
             "sources": tk.StringVar(value="-"),
             "block_value": tk.StringVar(value="No bloqueable"),
+            "confidence": tk.StringVar(value="-"),
         }
         rows = (
             ("IOC", "ioc"),
@@ -411,6 +412,7 @@ class App(tk.Tk):
             ("Riesgo de falso positivo", "risk"),
             ("Fuentes OSINT", "sources"),
             ("Valor para bloqueo", "block_value"),
+            ("Confianza", "confidence"),
         )
         for index, (label, key) in enumerate(rows):
             ttk.Label(frame, text=f"{label}:", style="Field.TLabel").grid(row=index, column=0, sticky="nw", padx=(0, 10), pady=3)
@@ -478,14 +480,26 @@ class App(tk.Tk):
             extracted = extract_iocs(context, iocs)
             allowlist = load_allowlist()
             decided = []
-            for extracted_item in extracted:
+            classified: list = []
+            fallback_items: list = []
+            try:
+                # Clasificación conjunta: el análisis contextual necesita ver
+                # todos los IOCs a la vez para asociar señales por frase.
+                classified = classify_many(extracted, context, allowlist)
+            except Exception:
+                for extracted_item in extracted:
+                    try:
+                        classified.append(classify_ioc(extracted_item, context, allowlist))
+                    except Exception as exc:
+                        fallback_items.append(self._fallback_review_item(extracted_item, exc))
+            for item in classified:
                 try:
-                    item = classify_ioc(extracted_item, context, allowlist)
                     if use_osint:
                         collect_osint(item)
                     decided.extend(decide_many([item]))
                 except Exception as exc:
-                    decided.append(self._fallback_review_item(extracted_item, exc))
+                    decided.append(self._fallback_review_item(item, exc))
+            decided.extend(fallback_items)
             self.worker_queue.put(("ok", decided))
         except Exception as exc:
             self.worker_queue.put(("error", exc))
@@ -593,7 +607,12 @@ class App(tk.Tk):
         self.detail_vars["risk"].set(self._field(item, "false_positive_risk", "fp_risk") or "-")
         self.detail_vars["sources"].set(self._sources(item))
         self.detail_vars["block_value"].set(blockable_value or "No bloqueable")
-        self._set_reason(self._field(item, "reason") or "-")
+        self.detail_vars["confidence"].set(self._field(item, "confidence") or "-")
+        reason = self._field(item, "reason") or "-"
+        reasoning = self._field(item, "analyst_reasoning")
+        if reasoning:
+            reason = f"{reason}\n\n{reasoning}"
+        self._set_reason(reason)
 
         self.copy_ioc_button.configure(state="normal")
         self.detail_copy_ioc_button.configure(state="normal")
@@ -635,15 +654,27 @@ class App(tk.Tk):
         item = self.selected_result
         if not item:
             return
+        evidence = self._field(item, "evidence", default=[]) or []
+        if isinstance(evidence, str):
+            evidence = [evidence]
+        evidence_lines = [f"  - {entry}" for entry in evidence] or ["  - Sin evidencias registradas."]
+        block_value = self._field(item, "block_value") or self.get_blockable_value(item) or "No bloqueable"
         summary = "\n".join(
             (
                 f"IOC: {self._field(item, 'normalized') or self._field(item, 'original')}",
                 f"Tipo: {self._field(item, 'ioc_type', 'type')}",
+                f"Dominio raíz: {self._field(item, 'root_domain') or '-'}",
+                f"Rol: {self._field(item, 'role') or '-'}",
                 f"Decisión: {self._field(item, 'decision')}",
-                f"Acción recomendada: {self._field(item, 'recommended_action', 'action')}",
-                f"Motivo: {self._field(item, 'reason')}",
+                f"Valor para bloqueo: {block_value}",
                 f"Riesgo de falso positivo: {self._field(item, 'false_positive_risk', 'fp_risk')}",
+                f"Confianza: {self._field(item, 'confidence') or '-'}",
+                "Evidencias:",
+                *evidence_lines,
+                f"Motivo: {self._field(item, 'reason')}",
+                f"Acción recomendada: {self._field(item, 'recommended_action', 'action')}",
                 f"Fuentes OSINT: {self._sources(item)}",
+                "Nota: La recomendación debe validarse antes de aplicar bloqueo.",
             )
         )
         self.clipboard_clear()
