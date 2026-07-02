@@ -14,3 +14,11 @@ meta.highspot.com
 salesforce.com
 sendgrid.net
 mailchimp.com
+dropbox.com
+dropboxusercontent.com
+googleusercontent.com
+amazonaws.com
+cloudfront.net
+azure.com
+azureedge.net
+cloudflare.com

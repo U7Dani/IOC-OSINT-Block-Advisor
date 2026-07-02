@@ -19,3 +19,7 @@ amazonaws.com
 cloudfront.net
 azure.com
 azureedge.net
+dropbox.com
+dropboxusercontent.com
+cloudflare.com
+zoom.com

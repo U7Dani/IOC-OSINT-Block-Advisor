@@ -129,3 +129,22 @@ pytest
 ## Limitaciones
 
 Este MVP prioriza recomendaciones conservadoras y explicables. OSINT externo puede ser incompleto, rate-limited o no responder. OTX no debe usarse como única fuente para bloqueo. La decisión final debe validarla un analista.
+
+## Motor de decisión contextual (v2)
+
+El análisis lee el contexto de la investigación frase a frase y asocia señales a cada IOC:
+
+- **Señales fuertes** (elevan el bloqueo): landing final (+40), captura/solicitud de credenciales (+35), suplantación (+30), dominio recientemente creado (+25), phishing/portal fraudulento (+25), redirección final (+20), no relacionado con proveedor legítimo (+20), abuso confirmado (+30), formulario/portal de login (+15), autenticación SPF/DKIM/DMARC fallida (+15).
+- **Señales de cautela** (reducen el bloqueo): dominio raíz SaaS confiable (-50), dominio en allowlist (-40), dominio remitente legítimo (-30), autenticación de correo válida (-25), infraestructura legítima mencionada (-25), solo observado (-20), infraestructura cloud compartida (-20).
+
+Una señal es **directa** si la frase menciona explícitamente el IOC (o su dominio/raíz). Las decisiones `BLOCK_*` exigen score ≥ 80, al menos dos señales fuertes y al menos una directa; entre 40 y 79 el IOC queda en `REVIEW`; por debajo, `OBSERVED_ONLY` o `DO_NOT_BLOCK`.
+
+Reglas de protección:
+
+- Los dominios en `config/allowlist_domains.txt` o `config/trusted_saas_domains.txt` **nunca** producen `BLOCK_DOMAIN`. Una URL exacta abusada sobre esos dominios puede ser `REVIEW` o `BLOCK_URL_EXACT` si el abuso está confirmado.
+- Los senders solo producen `BLOCK_SENDER_EXACT` con evidencia fuerte y explícita (abuso confirmado, spoofing, fallo de autenticación) más confirmación OSINT.
+- Las IPs nunca pasan de `REVIEW` (no existe blocklist de IPs en la exportación).
+
+Cada resultado incluye `evidence`, `positive_signals`, `negative_signals`, `score_breakdown`, `confidence`, `block_value`, `why_blockable`, `why_not_blockable` y `analyst_reasoning`, visibles en el informe completo, el CSV de revisión y el resumen para ticket.
+
+Las blocklists exportadas siguen conteniendo únicamente decisiones `BLOCK_*`; `REVIEW`, `DO_NOT_BLOCK` y `OBSERVED_ONLY` nunca se exportan como bloqueo.
