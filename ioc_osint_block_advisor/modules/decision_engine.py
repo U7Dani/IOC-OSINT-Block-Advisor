@@ -32,9 +32,13 @@ _OSINT_VERDICTS = {
     "not_checked": "not_checked",
     "error": "error",
 }
+VALID_VERDICTS = {"malicious", "suspicious", "clean", "unknown", "not_checked", "error"}
 
 
 def osint_verdict(result: dict) -> str:
+    structured = result.get("verdict")
+    if structured in VALID_VERDICTS:
+        return structured
     return _OSINT_VERDICTS.get(str(result.get("status", "")).lower(), "unknown")
 
 
@@ -64,6 +68,10 @@ def apply_osint_score(item) -> None:
 
 def has_osint_malicious_verdict(item) -> bool:
     return any(osint_verdict(r) == "malicious" for r in getattr(item, "osint_results", []) or [])
+
+
+def has_osint_suspicious_verdict(item) -> bool:
+    return any(osint_verdict(r) == "suspicious" for r in getattr(item, "osint_results", []) or [])
 
 
 def gates(item) -> dict:
@@ -212,10 +220,15 @@ def _decide_sender(item, g: dict):
 def _decide_ip(item, g: dict):
     caution_names = {s.name for s in context_signals.caution_signals(item)}
     strong = context_signals.strong_signals(item)
-    if (item.score >= BLOCK_THRESHOLD and g["required_direct_malicious_signal"] and len(strong) >= 2) or g["has_osint_malicious_verdict"]:
+    if g["has_osint_malicious_verdict"]:
         return _finalize(
             item, "REVIEW", "Medio", priority="alta",
-            why_not="La IP acumula evidencia fuerte (contexto/OSINT) como origen malicioso, pero esta herramienta no exporta blocklist de IPs y el bloqueo de IPs debe validarse manualmente por el riesgo de infraestructura compartida. Revisión prioritaria.",
+            why_not="La IP está marcada como maliciosa según fuentes OSINT (p. ej. AbuseIPDB/VirusTotal/ThreatFox), pero esta herramienta no exporta blocklist de IPs y el bloqueo debe validarse manualmente por el riesgo de infraestructura compartida. Revisión prioritaria.",
+        )
+    if item.score >= BLOCK_THRESHOLD and g["required_direct_malicious_signal"] and len(strong) >= 2:
+        return _finalize(
+            item, "REVIEW", "Medio", priority="alta",
+            why_not="La IP acumula evidencia fuerte como origen malicioso según el contexto, pero esta herramienta no exporta blocklist de IPs. Revisión prioritaria.",
         )
     if "shared_cloud_infrastructure" in caution_names or "legitimate_infrastructure" in caution_names:
         return _finalize(
@@ -416,10 +429,16 @@ def _collect_sources(item) -> None:
         sources.append("osint_externo:no_consultado")
     for result in results:
         source = result.get("source")
-        if source:
-            tagged = f"{source}:{osint_verdict(result)}"
-            if tagged not in sources:
-                sources.append(tagged)
+        if not source:
+            continue
+        status = str(result.get("status", "")).lower()
+        if status == "skipped":
+            label = "no_configurado"
+        else:
+            label = osint_verdict(result)
+        tagged = f"{source}:{label}"
+        if tagged not in sources:
+            sources.append(tagged)
     item.sources_used = sources
 
 

@@ -52,6 +52,7 @@ COLUMNS = (
     "role",
     "score",
     "decision",
+    "protection",
     "action",
     "reason",
     "fp_risk",
@@ -67,6 +68,7 @@ HEADERS = {
     "role": "Rol",
     "score": "Score",
     "decision": "Decisión",
+    "protection": "Protección",
     "action": "Acción recomendada",
     "reason": "Motivo",
     "fp_risk": "Riesgo de falso positivo",
@@ -74,18 +76,19 @@ HEADERS = {
 }
 
 COLUMN_WIDTHS = {
-    "original": 240,
-    "normalized": 300,
-    "defanged": 260,
-    "type": 95,
+    "original": 220,
+    "normalized": 280,
+    "defanged": 240,
+    "type": 90,
     "root_domain": 150,
-    "role": 155,
+    "role": 150,
     "score": 70,
     "decision": 165,
-    "action": 210,
-    "reason": 420,
-    "fp_risk": 160,
-    "sources": 200,
+    "protection": 190,
+    "action": 200,
+    "reason": 460,
+    "fp_risk": 150,
+    "sources": 190,
 }
 
 
@@ -146,35 +149,36 @@ class App(tk.Tk):
         style = ttk.Style(self)
         style.theme_use("clam")
 
-        style.configure(".", font=("Segoe UI", 9), background=COLORS["bg"], foreground=COLORS["text"])
+        style.configure(".", font=("Segoe UI", 10), background=COLORS["bg"], foreground=COLORS["text"])
         style.configure("App.TFrame", background="#0b1d3c")
         style.configure("Header.TFrame", background=COLORS["bg"])
         style.configure("Status.TFrame", background="#0a1932")
-        style.configure("Card.TLabelframe", background=COLORS["panel"], bordercolor=COLORS["border"], relief="solid")
+        style.configure("Card.TLabelframe", background=COLORS["panel"], bordercolor=COLORS["border"], relief="solid", borderwidth=2)
         style.configure(
             "Card.TLabelframe.Label",
             background=COLORS["panel"],
             foreground=COLORS["text"],
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 12, "bold"),
         )
         style.configure("CardBody.TFrame", background=COLORS["panel"])
         style.configure("Metric.TFrame", background=COLORS["panel_lift"], relief="solid", borderwidth=1)
 
-        style.configure("Title.TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Segoe UI", 20, "bold"))
-        style.configure("Subtitle.TLabel", background=COLORS["bg"], foreground=COLORS["muted"], font=("Segoe UI", 10))
-        style.configure("HeaderIcon.TLabel", background=COLORS["bg"], foreground=COLORS["cyan"], font=("Segoe UI Emoji", 25))
-        style.configure("Field.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 9, "bold"))
-        style.configure("Value.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 9))
-        style.configure("HighlightValue.TLabel", background=COLORS["panel"], foreground=COLORS["cyan"], font=("Segoe UI", 10, "bold"))
-        style.configure("Status.TLabel", background="#0a1932", foreground=COLORS["cyan"], font=("Segoe UI", 9, "bold"))
-        style.configure("Rule.TLabel", background="#0a1932", foreground=COLORS["muted"], font=("Segoe UI", 9))
-        style.configure("SmallMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 8))
-        style.configure("SummaryLabel.TLabel", background=COLORS["panel_lift"], foreground=COLORS["muted"], font=("Segoe UI", 8, "bold"))
-        style.configure("SummaryTotal.TLabel", background=COLORS["panel_lift"], foreground=COLORS["blue"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummaryBlock.TLabel", background=COLORS["panel_lift"], foreground=COLORS["red"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummaryReview.TLabel", background=COLORS["panel_lift"], foreground=COLORS["yellow"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummarySafe.TLabel", background=COLORS["panel_lift"], foreground=COLORS["green"], font=("Segoe UI", 19, "bold"))
-        style.configure("SummaryScore.TLabel", background=COLORS["panel_lift"], foreground=COLORS["cyan"], font=("Segoe UI", 19, "bold"))
+        style.configure("Title.TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Segoe UI", 22, "bold"))
+        style.configure("Subtitle.TLabel", background=COLORS["bg"], foreground=COLORS["muted"], font=("Segoe UI", 11))
+        style.configure("HeaderIcon.TLabel", background=COLORS["bg"], foreground=COLORS["cyan"], font=("Segoe UI Emoji", 27))
+        style.configure("Field.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 10, "bold"))
+        style.configure("Value.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 10))
+        style.configure("HighlightValue.TLabel", background=COLORS["panel"], foreground=COLORS["cyan"], font=("Segoe UI", 12, "bold"))
+        style.configure("Status.TLabel", background="#0a1932", foreground=COLORS["cyan"], font=("Segoe UI", 10, "bold"))
+        style.configure("Rule.TLabel", background="#0a1932", foreground=COLORS["muted"], font=("Segoe UI", 10))
+        style.configure("SmallMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 9))
+        style.configure("SummaryLabel.TLabel", background=COLORS["panel_lift"], foreground=COLORS["muted"], font=("Segoe UI", 9, "bold"))
+        style.configure("SummaryTotal.TLabel", background=COLORS["panel_lift"], foreground=COLORS["blue"], font=("Segoe UI", 22, "bold"))
+        style.configure("SummaryBlock.TLabel", background=COLORS["panel_lift"], foreground=COLORS["red"], font=("Segoe UI", 22, "bold"))
+        style.configure("SummaryReview.TLabel", background=COLORS["panel_lift"], foreground=COLORS["yellow"], font=("Segoe UI", 22, "bold"))
+        style.configure("SummarySafe.TLabel", background=COLORS["panel_lift"], foreground=COLORS["green"], font=("Segoe UI", 22, "bold"))
+        style.configure("SummaryScore.TLabel", background=COLORS["panel_lift"], foreground=COLORS["cyan"], font=("Segoe UI", 22, "bold"))
+        style.configure("SummaryProtected.TLabel", background=COLORS["panel_lift"], foreground=COLORS["violet"], font=("Segoe UI", 22, "bold"))
 
         style.configure("TScrollbar", background=COLORS["panel_alt"], troughcolor=COLORS["bg"], bordercolor=COLORS["border"], arrowcolor=COLORS["text"])
         style.configure(
@@ -183,8 +187,8 @@ class App(tk.Tk):
             fieldbackground="#0d1b31",
             foreground=COLORS["text"],
             bordercolor=COLORS["border"],
-            rowheight=28,
-            font=("Segoe UI", 9),
+            rowheight=34,
+            font=("Segoe UI", 10),
         )
         style.map("Treeview", background=[("selected", COLORS["selection"])], foreground=[("selected", "#ffffff")])
         style.configure(
@@ -193,7 +197,7 @@ class App(tk.Tk):
             foreground=COLORS["text"],
             bordercolor=COLORS["border"],
             relief="flat",
-            font=("Segoe UI", 9, "bold"),
+            font=("Segoe UI", 10, "bold"),
         )
         style.map("Treeview.Heading", background=[("active", "#1d477a")])
 
@@ -203,8 +207,16 @@ class App(tk.Tk):
         self._configure_button_style("Copy.TButton", "#1769aa", "#2188d6")
         self._configure_button_style("Danger.TButton", "#8a2444", "#c33164")
 
-        style.configure("TCheckbutton", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 9))
+        style.configure("TCheckbutton", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 10))
         style.map("TCheckbutton", background=[("active", COLORS["panel"])], foreground=[("disabled", COLORS["muted"])])
+
+        # Badges grandes de estado (BLOQUEABLE / REVISAR / NO BLOQUEAR / PROTEGIDO)
+        style.configure("BadgeBlock.TLabel", background=COLORS["red_bg"], foreground=COLORS["red"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
+        style.configure("BadgeReviewHigh.TLabel", background=COLORS["orange_bg"], foreground=COLORS["orange"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
+        style.configure("BadgeReview.TLabel", background=COLORS["yellow_bg"], foreground=COLORS["yellow"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
+        style.configure("BadgeSafe.TLabel", background=COLORS["green_bg"], foreground=COLORS["green"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
+        style.configure("BadgeObserved.TLabel", background=COLORS["observed_bg"], foreground=COLORS["cyan"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
+        style.configure("BadgeProtected.TLabel", background="#241246", foreground="#c9a6ff", font=("Segoe UI", 11, "bold"), padding=(12, 6))
 
     def create_gradient_background(self, parent: tk.Tk) -> None:
         self.background_canvas = tk.Canvas(parent, highlightthickness=0, bd=0, bg=COLORS["bg"])
@@ -354,6 +366,7 @@ class App(tk.Tk):
             "total": tk.StringVar(value="0"),
             "blockable": tk.StringVar(value="0"),
             "review": tk.StringVar(value="0"),
+            "protected": tk.StringVar(value="0"),
             "not_blockable": tk.StringVar(value="0"),
             "avg_score": tk.StringVar(value="0.0"),
         }
@@ -361,6 +374,7 @@ class App(tk.Tk):
             ("Total IOCs", "total", "SummaryTotal.TLabel"),
             ("Bloqueables", "blockable", "SummaryBlock.TLabel"),
             ("En revisión", "review", "SummaryReview.TLabel"),
+            ("Protegidos", "protected", "SummaryProtected.TLabel"),
             ("No bloqueables", "not_blockable", "SummarySafe.TLabel"),
             ("Score medio", "avg_score", "SummaryScore.TLabel"),
         )
@@ -396,6 +410,17 @@ class App(tk.Tk):
         frame = self.create_card(parent, "Detalle del IOC seleccionado")
         frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         frame.columnconfigure(1, weight=1)
+
+        badges_row = ttk.Frame(frame, style="CardBody.TFrame")
+        badges_row.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        self.status_badge_var = tk.StringVar(value="Selecciona un IOC")
+        self.status_badge = ttk.Label(badges_row, textvariable=self.status_badge_var, style="BadgeObserved.TLabel")
+        self.status_badge.pack(side="left")
+        self.protection_badge_var = tk.StringVar(value="")
+        self.protection_badge = ttk.Label(badges_row, textvariable=self.protection_badge_var, style="BadgeProtected.TLabel")
+        self.protection_badge.pack(side="left", padx=(10, 0))
+        self.protection_badge.pack_forget()
+
         self.detail_vars = {
             "ioc": tk.StringVar(value="-"),
             "type": tk.StringVar(value="-"),
@@ -419,32 +444,34 @@ class App(tk.Tk):
             ("Protección", "protection"),
         )
         for index, (label, key) in enumerate(rows):
-            ttk.Label(frame, text=f"{label}:", style="Field.TLabel").grid(row=index, column=0, sticky="nw", padx=(0, 10), pady=3)
+            grid_row = index + 1
+            ttk.Label(frame, text=f"{label}:", style="Field.TLabel").grid(row=grid_row, column=0, sticky="nw", padx=(0, 10), pady=3)
             if key == "ioc":
                 ioc_row = ttk.Frame(frame, style="CardBody.TFrame")
-                ioc_row.grid(row=index, column=1, sticky="ew", pady=3)
+                ioc_row.grid(row=grid_row, column=1, sticky="ew", pady=3)
                 ioc_row.columnconfigure(0, weight=1)
                 ttk.Label(ioc_row, textvariable=self.detail_vars[key], wraplength=830, style="HighlightValue.TLabel").grid(row=0, column=0, sticky="ew")
                 self.detail_copy_ioc_button = ttk.Button(ioc_row, text="📋 Copiar IOC", command=self.copy_selected_ioc, state="disabled", style="Copy.TButton")
                 self.detail_copy_ioc_button.grid(row=0, column=1, sticky="e", padx=(10, 0))
             else:
                 style = "HighlightValue.TLabel" if key in {"decision", "block_value"} else "Value.TLabel"
-                ttk.Label(frame, textvariable=self.detail_vars[key], wraplength=940, style=style).grid(row=index, column=1, sticky="ew", pady=3)
-        ttk.Label(frame, text="Motivo:", style="Field.TLabel").grid(row=len(rows), column=0, sticky="nw", padx=(0, 10), pady=(8, 2))
+                ttk.Label(frame, textvariable=self.detail_vars[key], wraplength=940, style=style).grid(row=grid_row, column=1, sticky="ew", pady=3)
+        reason_row = len(rows) + 1
+        ttk.Label(frame, text="Motivo:", style="Field.TLabel").grid(row=reason_row, column=0, sticky="nw", padx=(0, 10), pady=(8, 2))
         self.reason_text = tk.Text(
             frame,
-            height=4,
+            height=6,
             wrap="word",
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 10),
             state="disabled",
             bg="#0a1424",
             fg=COLORS["text"],
             relief="flat",
             borderwidth=0,
-            padx=10,
-            pady=8,
+            padx=12,
+            pady=10,
         )
-        self.reason_text.grid(row=len(rows), column=1, sticky="nsew", pady=(8, 2))
+        self.reason_text.grid(row=reason_row, column=1, sticky="nsew", pady=(8, 2))
 
     def _build_actions_panel(self, parent: ttk.Frame) -> None:
         frame = self.create_card(parent, "Acciones rápidas")
@@ -567,13 +594,20 @@ class App(tk.Tk):
         self.result_by_iid.clear()
         self.selected_result = None
         self._clear_detail()
-        for item in self.results:
-            iid = self.table.insert("", "end", values=self._row_values(item), tags=(self._tag_for_decision(self._field(item, "decision"), self._field(item, "review_priority")),))
+        for index, item in enumerate(self.results):
+            base_tag = self._tag_for_decision(self._field(item, "decision"), self._field(item, "review_priority"))
+            zebra_tag = f"{base_tag}_{'odd' if index % 2 else 'even'}"
+            iid = self.table.insert("", "end", values=self._row_values(item), tags=(zebra_tag,))
             self.result_by_iid[iid] = item
         self.apply_table_tags()
 
     def _row_values(self, item) -> tuple:
         decision = str(self._field(item, "decision")).upper()
+        priority = self._field(item, "review_priority")
+        if decision == "REVIEW" and priority:
+            decision = f"REVIEW ({priority})"
+        protected_by = self._field(item, "protected_by")
+        protection_label = "🛡 " + self._protection_label(item) if protected_by else "-"
         return (
             self._field(item, "original"),
             self._field(item, "normalized"),
@@ -583,6 +617,7 @@ class App(tk.Tk):
             self._field(item, "role"),
             self._field(item, "score", default=0),
             decision,
+            protection_label,
             self._field(item, "recommended_action", "action"),
             self._field(item, "reason"),
             self._field(item, "false_positive_risk", "fp_risk"),
@@ -594,11 +629,13 @@ class App(tk.Tk):
         blockable = sum(1 for item in results if self._field(item, "decision") in BLOCKING_DECISIONS)
         review = sum(1 for item in results if self._field(item, "decision") == "REVIEW")
         not_blockable = sum(1 for item in results if self._field(item, "decision") in {"DO_NOT_BLOCK", "OBSERVED_ONLY"})
+        protected = sum(1 for item in results if self._field(item, "protected_by"))
         scores = [float(self._field(item, "score", default=0) or 0) for item in results]
         avg_score = sum(scores) / total if total else 0
         self.summary_vars["total"].set(str(total))
         self.summary_vars["blockable"].set(str(blockable))
         self.summary_vars["review"].set(str(review))
+        self.summary_vars["protected"].set(str(protected))
         self.summary_vars["not_blockable"].set(str(not_blockable))
         self.summary_vars["avg_score"].set(f"{avg_score:.1f}")
 
@@ -633,11 +670,42 @@ class App(tk.Tk):
         if reasoning:
             reason = f"{reason}\n\n{reasoning}"
         self._set_reason(reason)
+        self._update_status_badge(item)
 
         self.copy_ioc_button.configure(state="normal")
         self.detail_copy_ioc_button.configure(state="normal")
         self.copy_block_button.configure(state="normal" if blockable_value else "disabled")
         self.copy_ticket_button.configure(state="normal")
+
+    def _update_status_badge(self, item) -> None:
+        decision = self._field(item, "decision")
+        priority = self._field(item, "review_priority")
+        if decision in BLOCKING_DECISIONS:
+            self.status_badge_var.set(f"🔴 BLOQUEABLE — {decision}")
+            self.status_badge.configure(style="BadgeBlock.TLabel")
+        elif decision == "REVIEW" and str(priority).lower() in {"alta", "high"}:
+            self.status_badge_var.set("🟠 REVISAR (prioridad alta)")
+            self.status_badge.configure(style="BadgeReviewHigh.TLabel")
+        elif decision == "REVIEW":
+            self.status_badge_var.set("🟡 REVISAR")
+            self.status_badge.configure(style="BadgeReview.TLabel")
+        elif decision == "DO_NOT_BLOCK":
+            self.status_badge_var.set("🟢 NO BLOQUEAR")
+            self.status_badge.configure(style="BadgeSafe.TLabel")
+        elif decision == "OBSERVED_ONLY":
+            self.status_badge_var.set("🔵 SOLO OBSERVADO")
+            self.status_badge.configure(style="BadgeObserved.TLabel")
+        else:
+            self.status_badge_var.set(decision or "-")
+            self.status_badge.configure(style="BadgeObserved.TLabel")
+
+        protected_by = self._field(item, "protected_by")
+        if protected_by:
+            self.protection_badge_var.set(self._protection_label(item))
+            self.protection_badge.pack(side="left", padx=(10, 0))
+        else:
+            self.protection_badge_var.set("")
+            self.protection_badge.pack_forget()
 
     def get_blockable_value(self, result) -> str:
         decision = self._field(result, "decision")
@@ -696,21 +764,21 @@ class App(tk.Tk):
             f"Decisión: {decision_display}",
             f"Confianza: {self._field(item, 'confidence') or '-'}",
             f"Score: {self._field(item, 'score', default=0)}",
+            f"Protección: {self._protection_label(item)}",
             f"Valor para bloqueo: {block_value}",
             f"Riesgo de falso positivo: {self._field(item, 'false_positive_risk', 'fp_risk')}",
-            f"Protección: {self._protection_label(item)}",
-            f"Fuentes consultadas: {sources_text or self._sources(item)}",
-            "Evidencias positivas (a favor de bloquear):",
+            f"Fuentes OSINT consultadas: {sources_text or self._sources(item)}",
+            "Evidencias positivas:",
         ]
         lines.extend([f"- {e}" for e in positive_evidence] or ["- Ninguna."])
         lines.append("Evidencias negativas / cautelas:")
         lines.extend([f"- {e}" for e in negative_evidence] or ["- Ninguna."])
-        conclusion = self._field(item, "soc_conclusion")
-        if conclusion:
-            lines.extend(["Conclusión SOC:", conclusion])
         reasoning = self._field(item, "analyst_reasoning")
         if reasoning:
             lines.extend(["Razonamiento:", reasoning])
+        conclusion = self._field(item, "soc_conclusion")
+        if conclusion:
+            lines.extend(["Conclusión SOC:", conclusion])
         lines.append(f"Acción recomendada: {self._field(item, 'recommended_action', 'action')}")
         lines.append("Nota: La recomendación debe validarse antes de aplicar bloqueo.")
         summary = "\n".join(lines)
@@ -723,6 +791,18 @@ class App(tk.Tk):
         return str(entry).startswith("[cautela]")
 
     def apply_table_tags(self) -> None:
+        zebra_specs = {
+            "block": (COLORS["red_bg"], "#4a2030", "#ffe8eb"),
+            "review": (COLORS["yellow_bg"], "#453518", "#fff1c1"),
+            "review_high": (COLORS["orange_bg"], "#4d2c14", COLORS["orange"]),
+            "do_not_block": (COLORS["green_bg"], "#1a4030", "#ddfbe8"),
+            "observed": (COLORS["observed_bg"], "#1c3a5e", "#d8eaff"),
+            "default": ("#0b1626", "#101f34", COLORS["text"]),
+        }
+        for base, (even_bg, odd_bg, fg) in zebra_specs.items():
+            self.table.tag_configure(f"{base}_even", background=even_bg, foreground=fg)
+            self.table.tag_configure(f"{base}_odd", background=odd_bg, foreground=fg)
+        # Compatibilidad: tags sin sufijo por si se referencian en otro lugar.
         self.table.tag_configure("block", background=COLORS["red_bg"], foreground="#ffe8eb")
         self.table.tag_configure("review", background=COLORS["yellow_bg"], foreground="#fff1c1")
         self.table.tag_configure("review_high", background=COLORS["orange_bg"], foreground=COLORS["orange"])
@@ -759,6 +839,10 @@ class App(tk.Tk):
             var.set("-")
         self.detail_vars["block_value"].set("No bloqueable")
         self._set_reason("")
+        self.status_badge_var.set("Selecciona un IOC")
+        self.status_badge.configure(style="BadgeObserved.TLabel")
+        self.protection_badge_var.set("")
+        self.protection_badge.pack_forget()
         self.copy_ioc_button.configure(state="disabled")
         self.detail_copy_ioc_button.configure(state="disabled")
         self.copy_block_button.configure(state="disabled")
