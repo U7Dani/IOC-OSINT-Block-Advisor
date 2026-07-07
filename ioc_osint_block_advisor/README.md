@@ -106,13 +106,20 @@ Un sender observado no debe bloquearse solo por aparecer en un correo sospechoso
 
 ## Interfaz: visibilidad y jerarquía visual
 
-- Fuentes y espaciados aumentados en toda la app (tabla, panel de detalle, resumen ejecutivo) para mejorar la lectura.
-- El panel de detalle abre con un badge grande de estado: 🔴 BLOQUEABLE, 🟠 REVISAR (prioridad alta), 🟡 REVISAR, 🟢 NO BLOQUEAR o 🔵 SOLO OBSERVADO, y un segundo badge morado "🛡 Protegido por allowlist de cliente" cuando aplica.
-- La tabla de resultados incluye ahora una columna "Protección" y usa zebra striping combinado con el color de la decisión (rojo/naranja/amarillo/verde/azul) para que las filas se lean con más contraste sin perder la codificación por color.
+- La zona de resultados y el panel de detalle están ahora dentro de un **separador vertical arrastrable** (`PanedWindow`): por defecto la tabla de resultados recibe ~58% de la altura disponible, pero el analista puede arrastrar el separador para extender cualquiera de las dos zonas según lo necesite en cada momento. Esto corrige el problema de la tabla de resultados quedando comprimida/oculta cuando el panel de detalle crecía.
+- La tabla muestra por defecto solo las columnas esenciales (IOC, Tipo, Dominio raíz, Rol, Score, Decisión, Protección, Riesgo FP, Fuentes) para reducir el scroll horizontal; los campos más extensos (IOC original, defanged, motivo completo, acción recomendada) se consultan en el panel de detalle.
+- El panel de detalle se organiza en **pestañas** para no consumir tanto espacio vertical:
+  - **📋 Resumen**: IOC, tipo, dominio raíz, rol, decisión, score, confianza, protección, valor para bloqueo, riesgo de falso positivo y acción recomendada.
+  - **🧾 Evidencias**: evidencias positivas y negativas/cautelas en columnas separadas, más razonamiento y conclusión SOC.
+  - **🔍 OSINT**: fuentes consultadas y detalle por proveedor (tipo de artefacto, veredicto, detalle), o el aviso de que OSINT externo no se consultó.
+  - **🎫 Ticket / Exportación**: vista previa completa del resumen para ticket/Jira con su propio botón "Copiar resumen para ticket".
+- El panel de detalle abre con un badge grande de estado: 🔴 BLOQUEABLE, 🟠 REVISAR (prioridad alta), 🟡 REVISAR, 🟢 NO BLOQUEAR o 🔵 SOLO OBSERVADO, y un segundo badge morado "Protegido por allowlist de cliente" cuando aplica.
+- La tabla usa zebra striping combinado con el color de la decisión (rojo/naranja/amarillo/verde/azul) para más contraste sin perder la codificación por color.
 - El resumen ejecutivo añade un contador de "Protegidos" junto a Total, Bloqueables, En revisión, No bloqueables y Score medio.
-- "Copiar para bloqueo" y el resto de acciones rápidas se habilitan/deshabilitan visualmente según haya o no un valor bloqueable para el IOC seleccionado.
+- Ventana por defecto más grande (1680×1020, mínimo 1300×820) para dar más aire a todas las secciones desde el primer arranque.
 
 ## Configuración y privacidad
+
 
 Ficheros de configuración en `config/` (todos editables, cada uno vacío por defecto salvo los indicados):
 
