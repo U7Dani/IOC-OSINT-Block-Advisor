@@ -44,24 +44,20 @@ COLORS = {
 }
 
 COLUMNS = (
-    "original",
     "normalized",
-    "defanged",
     "type",
     "root_domain",
     "role",
     "score",
     "decision",
     "protection",
-    "action",
-    "reason",
     "fp_risk",
     "sources",
 )
 
 HEADERS = {
     "original": "IOC original",
-    "normalized": "IOC normalizado",
+    "normalized": "IOC",
     "defanged": "IOC defanged",
     "type": "Tipo",
     "root_domain": "Dominio raíz",
@@ -71,24 +67,24 @@ HEADERS = {
     "protection": "Protección",
     "action": "Acción recomendada",
     "reason": "Motivo",
-    "fp_risk": "Riesgo de falso positivo",
+    "fp_risk": "Riesgo FP",
     "sources": "Fuentes OSINT",
 }
 
 COLUMN_WIDTHS = {
     "original": 220,
-    "normalized": 280,
+    "normalized": 260,
     "defanged": 240,
     "type": 90,
-    "root_domain": 150,
+    "root_domain": 160,
     "role": 150,
     "score": 70,
-    "decision": 165,
-    "protection": 190,
+    "decision": 175,
+    "protection": 220,
     "action": 200,
     "reason": 460,
-    "fp_risk": 150,
-    "sources": 190,
+    "fp_risk": 110,
+    "sources": 200,
 }
 
 
@@ -96,8 +92,8 @@ class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("IOC OSINT Block Advisor")
-        self.geometry("1600x960")
-        self.minsize(1240, 790)
+        self.geometry("1680x1020")
+        self.minsize(1300, 820)
         self.configure(bg=COLORS["bg"])
         self.background_canvas: tk.Canvas | None = None
         self.results = []
@@ -124,26 +120,57 @@ class App(tk.Tk):
         self.iocs_text = self._build_text_panel(top, "IOCs observados", 1)
         self._build_summary_panel(top, 2)
 
-        center = ttk.Frame(self, padding=(18, 7, 18, 7), style="App.TFrame")
-        center.grid(row=2, column=0, sticky="nsew")
+        # PanedWindow vertical: separa la tabla de resultados del panel de
+        # detalle, con un sash arrastrable para que el analista pueda
+        # extender la zona que necesite ver mejor en cada momento.
+        self.main_paned = tk.PanedWindow(
+            self,
+            orient=tk.VERTICAL,
+            sashrelief="raised",
+            sashwidth=7,
+            bg=COLORS["border"],
+            bd=0,
+            opaqueresize=True,
+        )
+        self.main_paned.grid(row=2, column=0, sticky="nsew")
+
+        center = ttk.Frame(self.main_paned, padding=(18, 7, 18, 4), style="App.TFrame")
         center.columnconfigure(0, weight=1)
         center.rowconfigure(0, weight=1)
         self._build_table(center)
+        self.main_paned.add(center, minsize=240, stretch="always")
 
-        bottom = ttk.Frame(self, padding=(18, 7, 18, 12), style="App.TFrame")
-        bottom.grid(row=3, column=0, sticky="nsew")
+        bottom = ttk.Frame(self.main_paned, padding=(18, 4, 18, 12), style="App.TFrame")
         bottom.columnconfigure(0, weight=3)
         bottom.columnconfigure(1, weight=1)
+        bottom.rowconfigure(0, weight=1)
         self._build_detail_panel(bottom)
         self._build_actions_panel(bottom)
+        self.main_paned.add(bottom, minsize=280, stretch="always")
+
+        # Dar a la tabla de resultados la mayor parte del espacio por
+        # defecto (el usuario puede arrastrar el separador para ajustarlo).
+        self.after(80, self._set_default_sash_position)
 
         status_bar = ttk.Frame(self, padding=(18, 8), style="Status.TFrame")
-        status_bar.grid(row=4, column=0, sticky="ew")
+        status_bar.grid(row=3, column=0, sticky="ew")
         status_bar.columnconfigure(0, weight=1)
         self.status = tk.StringVar(value="Listo.")
         self.rule_status = tk.StringVar(value="IOC observado no significa IOC bloqueable")
         ttk.Label(status_bar, textvariable=self.status, style="Status.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(status_bar, textvariable=self.rule_status, style="Rule.TLabel").grid(row=0, column=1, sticky="e")
+
+    def _set_default_sash_position(self) -> None:
+        try:
+            total_height = self.main_paned.winfo_height()
+            if total_height <= 1:
+                self.after(120, self._set_default_sash_position)
+                return
+            # ~58% del alto disponible para la tabla de resultados; el resto
+            # para el panel de detalle. El usuario puede arrastrar el sash.
+            self.main_paned.sash_place(0, 0, int(total_height * 0.58))
+        except tk.TclError:
+            pass
 
     def setup_styles(self) -> None:
         style = ttk.Style(self)
@@ -217,6 +244,20 @@ class App(tk.Tk):
         style.configure("BadgeSafe.TLabel", background=COLORS["green_bg"], foreground=COLORS["green"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
         style.configure("BadgeObserved.TLabel", background=COLORS["observed_bg"], foreground=COLORS["cyan"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
         style.configure("BadgeProtected.TLabel", background="#241246", foreground="#c9a6ff", font=("Segoe UI", 11, "bold"), padding=(12, 6))
+
+        style.configure("TNotebook", background=COLORS["panel"], borderwidth=0)
+        style.configure(
+            "TNotebook.Tab",
+            background=COLORS["panel_alt"],
+            foreground=COLORS["muted"],
+            padding=(16, 8),
+            font=("Segoe UI", 10, "bold"),
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[("selected", COLORS["panel_lift"])],
+            foreground=[("selected", COLORS["text"])],
+        )
 
     def create_gradient_background(self, parent: tk.Tk) -> None:
         self.background_canvas = tk.Canvas(parent, highlightthickness=0, bd=0, bg=COLORS["bg"])
@@ -396,7 +437,7 @@ class App(tk.Tk):
         self.table = ttk.Treeview(frame, columns=COLUMNS, show="headings", height=16, selectmode="browse")
         for column in COLUMNS:
             self.table.heading(column, text=HEADERS[column])
-            self.table.column(column, width=COLUMN_WIDTHS[column], minwidth=60, stretch=column in {"reason", "normalized", "defanged"})
+            self.table.column(column, width=COLUMN_WIDTHS[column], minwidth=60, stretch=column in {"normalized", "sources", "protection"})
         y_scroll = ttk.Scrollbar(frame, orient="vertical", command=self.table.yview)
         x_scroll = ttk.Scrollbar(frame, orient="horizontal", command=self.table.xview)
         self.table.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
@@ -409,10 +450,11 @@ class App(tk.Tk):
     def _build_detail_panel(self, parent: ttk.Frame) -> None:
         frame = self.create_card(parent, "Detalle del IOC seleccionado")
         frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
 
         badges_row = ttk.Frame(frame, style="CardBody.TFrame")
-        badges_row.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        badges_row.grid(row=0, column=0, sticky="ew", pady=(0, 10))
         self.status_badge_var = tk.StringVar(value="Selecciona un IOC")
         self.status_badge = ttk.Label(badges_row, textvariable=self.status_badge_var, style="BadgeObserved.TLabel")
         self.status_badge.pack(side="left")
@@ -421,46 +463,112 @@ class App(tk.Tk):
         self.protection_badge.pack(side="left", padx=(10, 0))
         self.protection_badge.pack_forget()
 
+        self.detail_notebook = ttk.Notebook(frame)
+        self.detail_notebook.grid(row=1, column=0, sticky="nsew")
+
         self.detail_vars = {
             "ioc": tk.StringVar(value="-"),
             "type": tk.StringVar(value="-"),
+            "root_domain": tk.StringVar(value="-"),
+            "role": tk.StringVar(value="-"),
             "decision": tk.StringVar(value="-"),
-            "action": tk.StringVar(value="-"),
-            "risk": tk.StringVar(value="-"),
-            "sources": tk.StringVar(value="-"),
-            "block_value": tk.StringVar(value="No bloqueable"),
+            "score": tk.StringVar(value="-"),
             "confidence": tk.StringVar(value="-"),
             "protection": tk.StringVar(value="-"),
+            "block_value": tk.StringVar(value="No bloqueable"),
+            "risk": tk.StringVar(value="-"),
+            "action": tk.StringVar(value="-"),
+            "sources": tk.StringVar(value="-"),
         }
+
+        self._build_summary_tab()
+        self._build_evidence_tab()
+        self._build_osint_tab()
+        self._build_ticket_tab()
+
+    def _build_summary_tab(self) -> None:
+        tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
+        self.detail_notebook.add(tab, text="📋 Resumen")
+        tab.columnconfigure(1, weight=1)
+
         rows = (
             ("IOC", "ioc"),
             ("Tipo", "type"),
+            ("Dominio raíz", "root_domain"),
+            ("Rol", "role"),
             ("Decisión", "decision"),
-            ("Acción recomendada", "action"),
-            ("Riesgo de falso positivo", "risk"),
-            ("Fuentes OSINT", "sources"),
-            ("Valor para bloqueo", "block_value"),
+            ("Score", "score"),
             ("Confianza", "confidence"),
             ("Protección", "protection"),
+            ("Valor para bloqueo", "block_value"),
+            ("Riesgo de falso positivo", "risk"),
+            ("Acción recomendada", "action"),
         )
         for index, (label, key) in enumerate(rows):
-            grid_row = index + 1
-            ttk.Label(frame, text=f"{label}:", style="Field.TLabel").grid(row=grid_row, column=0, sticky="nw", padx=(0, 10), pady=3)
+            ttk.Label(tab, text=f"{label}:", style="Field.TLabel").grid(row=index, column=0, sticky="nw", padx=(0, 10), pady=4)
             if key == "ioc":
-                ioc_row = ttk.Frame(frame, style="CardBody.TFrame")
-                ioc_row.grid(row=grid_row, column=1, sticky="ew", pady=3)
+                ioc_row = ttk.Frame(tab, style="CardBody.TFrame")
+                ioc_row.grid(row=index, column=1, sticky="ew", pady=4)
                 ioc_row.columnconfigure(0, weight=1)
-                ttk.Label(ioc_row, textvariable=self.detail_vars[key], wraplength=830, style="HighlightValue.TLabel").grid(row=0, column=0, sticky="ew")
+                ttk.Label(ioc_row, textvariable=self.detail_vars[key], wraplength=780, style="HighlightValue.TLabel").grid(row=0, column=0, sticky="ew")
                 self.detail_copy_ioc_button = ttk.Button(ioc_row, text="📋 Copiar IOC", command=self.copy_selected_ioc, state="disabled", style="Copy.TButton")
                 self.detail_copy_ioc_button.grid(row=0, column=1, sticky="e", padx=(10, 0))
             else:
                 style = "HighlightValue.TLabel" if key in {"decision", "block_value"} else "Value.TLabel"
-                ttk.Label(frame, textvariable=self.detail_vars[key], wraplength=940, style=style).grid(row=grid_row, column=1, sticky="ew", pady=3)
-        reason_row = len(rows) + 1
-        ttk.Label(frame, text="Motivo:", style="Field.TLabel").grid(row=reason_row, column=0, sticky="nw", padx=(0, 10), pady=(8, 2))
-        self.reason_text = tk.Text(
-            frame,
-            height=6,
+                ttk.Label(tab, textvariable=self.detail_vars[key], wraplength=900, style=style).grid(row=index, column=1, sticky="ew", pady=4)
+
+    def _build_evidence_tab(self) -> None:
+        tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
+        self.detail_notebook.add(tab, text="🧾 Evidencias")
+        tab.columnconfigure(0, weight=1)
+        tab.columnconfigure(1, weight=1)
+        tab.rowconfigure(1, weight=1)
+        tab.rowconfigure(3, weight=1)
+
+        ttk.Label(tab, text="Evidencias positivas (a favor de bloquear)", style="Field.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(tab, text="Evidencias negativas / cautelas", style="Field.TLabel").grid(row=0, column=1, sticky="w", padx=(12, 0), pady=(0, 4))
+        self.positive_evidence_text = self._make_readonly_text(tab, height=6)
+        self.positive_evidence_text.grid(row=1, column=0, sticky="nsew", padx=(0, 6))
+        self.negative_evidence_text = self._make_readonly_text(tab, height=6)
+        self.negative_evidence_text.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
+
+        ttk.Label(tab, text="Razonamiento y conclusión SOC", style="Field.TLabel").grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 4))
+        self.reason_text = self._make_readonly_text(tab, height=8)
+        self.reason_text.grid(row=3, column=0, columnspan=2, sticky="nsew")
+
+    def _build_osint_tab(self) -> None:
+        tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
+        self.detail_notebook.add(tab, text="🔍 OSINT")
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(2, weight=1)
+
+        ttk.Label(tab, text="Fuentes consultadas:", style="Field.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(tab, textvariable=self.detail_vars["sources"], style="Value.TLabel", wraplength=900).grid(row=1, column=0, sticky="ew", pady=(2, 10))
+
+        ttk.Label(tab, text="Detalle por fuente (proveedor · tipo de artefacto · veredicto · detalle)", style="Field.TLabel").grid(row=2, column=0, sticky="nw")
+        self.osint_text = self._make_readonly_text(tab, height=14)
+        self.osint_text.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
+        tab.rowconfigure(3, weight=1)
+
+    def _build_ticket_tab(self) -> None:
+        tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
+        self.detail_notebook.add(tab, text="🎫 Ticket / Exportación")
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(1, weight=1)
+
+        header = ttk.Frame(tab, style="CardBody.TFrame")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        header.columnconfigure(0, weight=1)
+        ttk.Label(header, text="Vista previa del resumen para ticket/Jira", style="Field.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Button(header, text="📋 Copiar resumen para ticket", command=self.copy_ticket_summary, style="Copy.TButton").grid(row=0, column=1, sticky="e")
+
+        self.ticket_text = self._make_readonly_text(tab, height=18)
+        self.ticket_text.grid(row=1, column=0, sticky="nsew")
+
+    def _make_readonly_text(self, parent, height: int) -> tk.Text:
+        widget = tk.Text(
+            parent,
+            height=height,
             wrap="word",
             font=("Segoe UI", 10),
             state="disabled",
@@ -471,7 +579,7 @@ class App(tk.Tk):
             padx=12,
             pady=10,
         )
-        self.reason_text.grid(row=reason_row, column=1, sticky="nsew", pady=(8, 2))
+        return widget
 
     def _build_actions_panel(self, parent: ttk.Frame) -> None:
         frame = self.create_card(parent, "Acciones rápidas")
@@ -608,21 +716,22 @@ class App(tk.Tk):
             decision = f"REVIEW ({priority})"
         protected_by = self._field(item, "protected_by")
         protection_label = "🛡 " + self._protection_label(item) if protected_by else "-"
-        return (
-            self._field(item, "original"),
-            self._field(item, "normalized"),
-            self._field(item, "defanged"),
-            self._field(item, "ioc_type", "type"),
-            self._field(item, "root_domain"),
-            self._field(item, "role"),
-            self._field(item, "score", default=0),
-            decision,
-            protection_label,
-            self._field(item, "recommended_action", "action"),
-            self._field(item, "reason"),
-            self._field(item, "false_positive_risk", "fp_risk"),
-            self._sources(item),
-        )
+        field_map = {
+            "original": self._field(item, "original"),
+            "normalized": self._field(item, "normalized"),
+            "defanged": self._field(item, "defanged"),
+            "type": self._field(item, "ioc_type", "type"),
+            "root_domain": self._field(item, "root_domain"),
+            "role": self._field(item, "role"),
+            "score": self._field(item, "score", default=0),
+            "decision": decision,
+            "protection": protection_label,
+            "action": self._field(item, "recommended_action", "action"),
+            "reason": self._field(item, "reason"),
+            "fp_risk": self._field(item, "false_positive_risk", "fp_risk"),
+            "sources": self._sources(item),
+        }
+        return tuple(field_map[column] for column in COLUMNS)
 
     def refresh_summary(self, results) -> None:
         total = len(results)
@@ -648,34 +757,73 @@ class App(tk.Tk):
         item = self.result_by_iid.get(selected[0])
         self.selected_result = item
         blockable_value = self.get_blockable_value(item)
-        self.detail_vars["ioc"].set(self._field(item, "normalized") or self._field(item, "original") or "-")
-        self.detail_vars["type"].set(self._field(item, "ioc_type", "type") or "-")
-        self.detail_vars["decision"].set(self._field(item, "decision") or "-")
-        self.detail_vars["action"].set(self._field(item, "recommended_action", "action") or "-")
-        self.detail_vars["risk"].set(self._field(item, "false_positive_risk", "fp_risk") or "-")
-        self.detail_vars["sources"].set(self._sources(item))
-        self.detail_vars["block_value"].set(blockable_value or "No bloqueable")
-        self.detail_vars["confidence"].set(self._field(item, "confidence") or "-")
-        self.detail_vars["protection"].set(self._protection_label(item))
+
         decision_display = self._field(item, "decision") or "-"
         priority = self._field(item, "review_priority")
         if decision_display == "REVIEW" and priority:
             decision_display = f"REVIEW (prioridad {priority})"
+
+        # --- Pestaña Resumen ---
+        self.detail_vars["ioc"].set(self._field(item, "normalized") or self._field(item, "original") or "-")
+        self.detail_vars["type"].set(self._field(item, "ioc_type", "type") or "-")
+        self.detail_vars["root_domain"].set(self._field(item, "root_domain") or "-")
+        self.detail_vars["role"].set(self._field(item, "role") or "-")
         self.detail_vars["decision"].set(decision_display)
-        reason = self._field(item, "reason") or "-"
-        conclusion = self._field(item, "soc_conclusion")
-        reasoning = self._field(item, "analyst_reasoning")
+        self.detail_vars["score"].set(str(self._field(item, "score", default=0)))
+        self.detail_vars["confidence"].set(self._field(item, "confidence") or "-")
+        self.detail_vars["protection"].set(self._protection_label(item))
+        self.detail_vars["block_value"].set(blockable_value or "No bloqueable")
+        self.detail_vars["risk"].set(self._field(item, "false_positive_risk", "fp_risk") or "-")
+        self.detail_vars["action"].set(self._field(item, "recommended_action", "action") or "-")
+        self.detail_vars["sources"].set(self._sources(item))
+
+        # --- Pestaña Evidencias ---
+        positive_evidence, negative_evidence = self._split_evidence(item)
+        self._set_text_widget(self.positive_evidence_text, "\n".join(f"• {e}" for e in positive_evidence) or "Ninguna evidencia positiva registrada.")
+        self._set_text_widget(self.negative_evidence_text, "\n".join(f"• {e}" for e in negative_evidence) or "Ninguna cautela registrada.")
+        reasoning = self._field(item, "analyst_reasoning") or ""
+        conclusion = self._field(item, "soc_conclusion") or ""
+        reason_parts = []
         if conclusion:
-            reason = f"Conclusión SOC: {conclusion}\n\n{reason}"
+            reason_parts.append(f"Conclusión SOC:\n{conclusion}")
         if reasoning:
-            reason = f"{reason}\n\n{reasoning}"
-        self._set_reason(reason)
+            reason_parts.append(f"Razonamiento:\n{reasoning}")
+        self._set_text_widget(self.reason_text, "\n\n".join(reason_parts) or (self._field(item, "reason") or "-"))
+
+        # --- Pestaña OSINT ---
+        self._set_text_widget(self.osint_text, self._format_osint_results(item))
+
+        # --- Pestaña Ticket ---
+        self._set_text_widget(self.ticket_text, "\n".join(self._build_ticket_lines(item)))
+
         self._update_status_badge(item)
 
         self.copy_ioc_button.configure(state="normal")
         self.detail_copy_ioc_button.configure(state="normal")
         self.copy_block_button.configure(state="normal" if blockable_value else "disabled")
         self.copy_ticket_button.configure(state="normal")
+
+    def _format_osint_results(self, item) -> str:
+        results = self._field(item, "osint_results", default=[]) or []
+        if not results:
+            return "OSINT externo no consultado. El análisis se basa únicamente en contexto y reglas locales."
+        verdict_icons = {
+            "malicious": "🔴",
+            "suspicious": "🟠",
+            "clean": "🟢",
+            "unknown": "⚪",
+            "not_checked": "⚫",
+            "error": "⚠️",
+        }
+        lines = []
+        for result in results:
+            provider = result.get("provider") or result.get("source") or "?"
+            artifact_type = result.get("artifact_type", "-")
+            verdict = result.get("verdict", "unknown")
+            icon = verdict_icons.get(verdict, "•")
+            details = result.get("details") or result.get("evidence") or ""
+            lines.append(f"{icon} {provider} · {artifact_type} · {verdict}\n   {details}")
+        return "\n\n".join(lines)
 
     def _update_status_badge(self, item) -> None:
         decision = self._field(item, "decision")
@@ -738,17 +886,16 @@ class App(tk.Tk):
         self.clipboard_append(value)
         self.status.set(f"IOC copiado: {value}")
 
-    def copy_ticket_summary(self) -> None:
-        item = self.selected_result
-        if not item:
-            return
-        positives = self._field(item, "positive_signals", default=[]) or []
-        negatives = self._field(item, "negative_signals", default=[]) or []
+    def _split_evidence(self, item) -> tuple[list[str], list[str]]:
         evidence = self._field(item, "evidence", default=[]) or []
         if isinstance(evidence, str):
             evidence = [evidence]
         positive_evidence = [e for e in evidence if not self._is_negative_evidence(e)]
         negative_evidence = [e.replace("[cautela] ", "", 1) for e in evidence if self._is_negative_evidence(e)]
+        return positive_evidence, negative_evidence
+
+    def _build_ticket_lines(self, item) -> list[str]:
+        positive_evidence, negative_evidence = self._split_evidence(item)
         block_value = self._field(item, "block_value") or self.get_blockable_value(item) or "No bloqueable"
         sources = self._field(item, "sources_used", default=[]) or []
         sources_text = ", ".join(sources) if isinstance(sources, list) else str(sources or self._sources(item))
@@ -781,7 +928,13 @@ class App(tk.Tk):
             lines.extend(["Conclusión SOC:", conclusion])
         lines.append(f"Acción recomendada: {self._field(item, 'recommended_action', 'action')}")
         lines.append("Nota: La recomendación debe validarse antes de aplicar bloqueo.")
-        summary = "\n".join(lines)
+        return lines
+
+    def copy_ticket_summary(self) -> None:
+        item = self.selected_result
+        if not item:
+            return
+        summary = "\n".join(self._build_ticket_lines(item))
         self.clipboard_clear()
         self.clipboard_append(summary)
         self.status.set("Resumen del IOC copiado para ticket.")
@@ -838,7 +991,11 @@ class App(tk.Tk):
         for var in self.detail_vars.values():
             var.set("-")
         self.detail_vars["block_value"].set("No bloqueable")
-        self._set_reason("")
+        self._set_text_widget(self.reason_text, "")
+        self._set_text_widget(self.positive_evidence_text, "")
+        self._set_text_widget(self.negative_evidence_text, "")
+        self._set_text_widget(self.osint_text, "")
+        self._set_text_widget(self.ticket_text, "")
         self.status_badge_var.set("Selecciona un IOC")
         self.status_badge.configure(style="BadgeObserved.TLabel")
         self.protection_badge_var.set("")
@@ -848,11 +1005,11 @@ class App(tk.Tk):
         self.copy_block_button.configure(state="disabled")
         self.copy_ticket_button.configure(state="disabled")
 
-    def _set_reason(self, value: str) -> None:
-        self.reason_text.configure(state="normal")
-        self.reason_text.delete("1.0", "end")
-        self.reason_text.insert("1.0", value)
-        self.reason_text.configure(state="disabled")
+    def _set_text_widget(self, widget: tk.Text, value: str) -> None:
+        widget.configure(state="normal")
+        widget.delete("1.0", "end")
+        widget.insert("1.0", value)
+        widget.configure(state="disabled")
 
     @staticmethod
     def _protection_label(item) -> str:
