@@ -37,7 +37,7 @@ def _write_lines(path: Path, values: list[str]) -> None:
 def _write_review(path: Path, items) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["ioc", "type", "role", "score", "confidence", "reason", "false_positive_risk", "evidence", "sources"])
+        writer.writerow(["ioc", "type", "role", "score", "confidence", "review_priority", "protected_by", "soc_conclusion", "reason", "false_positive_risk", "evidence", "sources"])
         for item in items:
             writer.writerow(
                 [
@@ -46,6 +46,9 @@ def _write_review(path: Path, items) -> None:
                     item.role,
                     item.score,
                     getattr(item, "confidence", ""),
+                    getattr(item, "review_priority", ""),
+                    getattr(item, "protected_by", ""),
+                    getattr(item, "soc_conclusion", ""),
                     item.reason,
                     item.false_positive_risk,
                     " | ".join(getattr(item, "evidence", []) or []),
@@ -96,6 +99,12 @@ def _full_report(items, context: str) -> str:
     lines.extend(["", "## Evidencias y razonamiento por IOC", ""])
     for item in items:
         lines.append(f"### {item.normalized}")
+        conclusion = getattr(item, "soc_conclusion", "")
+        if conclusion:
+            lines.append(f"**Conclusión SOC:** {conclusion}")
+        protected_by = getattr(item, "protected_by", "")
+        if protected_by:
+            lines.append(f"**Protección:** {protected_by}")
         for entry in getattr(item, "evidence", []) or []:
             lines.append(f"- {entry}")
         breakdown = getattr(item, "score_breakdown", []) or []

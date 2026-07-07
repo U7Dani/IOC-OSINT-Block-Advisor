@@ -1,0 +1,5 @@
+# Allowlist fuerte de cliente/organización (protección Fluidra).
+# Dominios y subdominios de la organización protegida y de clientes/proveedores
+# confirmados como legítimos. Nunca se recomienda BLOCK_DOMAIN ni
+# BLOCK_SENDER_EXACT para estos dominios (matching por dominio o subdominio).
+fluidra.com

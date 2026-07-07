@@ -52,7 +52,7 @@ STRONG_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
     ),
     (
         "final_redirect",
-        20,
+        25,
         (
             r"redirecci[oó]n\s+final",
             r"final\s+redirect",
@@ -67,7 +67,7 @@ STRONG_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
     ),
     (
         "credential_theft",
-        35,
+        40,
         (
             r"solicita\s+credenciales",
             r"solicitud\s+de\s+credenciales",
@@ -83,7 +83,7 @@ STRONG_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
     ),
     (
         "impersonation",
-        30,
+        35,
         (
             r"suplanta(?:ci[oó]n|ndo|r)?",
             r"impersona(?:tion|ting)?",
@@ -120,7 +120,7 @@ STRONG_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
     ),
     (
         "recently_created_domain",
-        25,
+        30,
         (
             r"cread[oa]\s+hace\s+\d+\s+d[ií]as",
             r"registrad[oa]\s+hace\s+\d+\s+d[ií]as",
@@ -149,7 +149,7 @@ STRONG_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
     ),
     (
         "auth_failed",
-        15,
+        20,
         (
             r"spf[\s:=]+(?:hard|soft)?fail(?:ed)?",
             r"dkim[\s:=]+fail(?:ed)?",
@@ -172,6 +172,39 @@ STRONG_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
             r"phishing\s+confirmado",
         ),
         "El contexto confirma explícitamente el abuso o la maliciosidad del IOC.",
+    ),
+    (
+        "malware_payload",
+        35,
+        (
+            r"\bmalware\b",
+            r"\bpayload\b",
+            r"descarga\s+maliciosa",
+            r"malicious\s+download",
+            r"\bdropper\b",
+            r"\btroyano\b",
+            r"\btrojan\b",
+            r"\bransomware\b",
+            r"\bstealer\b",
+            r"distribuci[oó]n\s+de\s+malware",
+            r"archivo\s+malicioso",
+        ),
+        "El contexto asocia el IOC a distribución de malware o payload malicioso.",
+    ),
+    (
+        "lookalike_domain",
+        35,
+        (
+            r"typosquat(?:ting)?",
+            r"lookalike",
+            r"look-alike",
+            r"homogr[aá]f[oa]?",
+            r"homograph",
+            r"dominio\s+(?:parecido|similar)\s+a",
+            r"marca\s+suplantada",
+            r"imita\s+(?:el\s+)?dominio",
+        ),
+        "El contexto describe el dominio como lookalike/typosquatting de una marca legítima.",
     ),
 )
 
@@ -196,7 +229,7 @@ CAUTION_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
     ),
     (
         "email_auth_passed",
-        -25,
+        -35,
         (
             r"spf[\s:=]+pass(?:ed)?",
             r"dkim[\s:=]+(?:pass(?:ed)?|v[aá]lid[oa])",
@@ -222,7 +255,7 @@ CAUTION_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
     ),
     (
         "shared_cloud_infrastructure",
-        -20,
+        -25,
         (
             r"infraestructura\s+compartida",
             r"shared\s+(?:cloud\s+)?(?:hosting|infrastructure)",
@@ -230,6 +263,46 @@ CAUTION_PATTERNS: tuple[tuple[str, int, tuple[str, ...], str], ...] = (
             r"cdn\s+compartid[oa]",
         ),
         "El IOC corresponde a infraestructura cloud/hosting compartida.",
+    ),
+    (
+        "legitimate_client_relationship",
+        -70,
+        (
+            r"comunicaci[oó]n\s+leg[ií]tima\s+de",
+            r"cliente\s+leg[ií]timo",
+            r"proveedor\s+leg[ií]timo\s+de",
+            r"relaci[oó]n\s+leg[ií]tima",
+            r"partner\s+leg[ií]timo",
+            r"pertenece\s+a\s+(?:un\s+)?(?:cliente|proveedor|partner)",
+            r"corporativo\s+leg[ií]timo\s+de",
+        ),
+        "El contexto indica que el IOC pertenece a una comunicación o relación legítima con el cliente/organización.",
+    ),
+    (
+        "corporate_tenant",
+        -30,
+        (
+            r"tenant\s+corporativ[oa]",
+            r"sharepoint\s+corporativo",
+            r"onedrive\s+corporativo",
+            r"microsoft\s*365\s+(?:leg[ií]timo|corporativo)",
+            r"sharepoint\s+leg[ií]timo",
+            r"onedrive\s+leg[ií]timo",
+            r"m365\s+(?:leg[ií]timo|corporativo)",
+        ),
+        "El contexto describe el recurso como tenant corporativo legítimo (SharePoint/OneDrive/M365).",
+    ),
+    (
+        "domain_age_high",
+        -20,
+        (
+            r"antig[uü]edad\s+alta",
+            r"dominio\s+antiguo",
+            r"registrad[oa]\s+hace\s+(?:m[aá]s\s+de\s+)?\d+\s+años",
+            r"cread[oa]\s+hace\s+(?:m[aá]s\s+de\s+)?\d+\s+años",
+            r"domain\s+age[\s:]+\d+\s+years",
+        ),
+        "El dominio tiene antigüedad alta, lo que reduce la probabilidad de infraestructura desechable.",
     ),
 )
 
@@ -333,7 +406,11 @@ def analyze_context(items, context: str) -> None:
     per_item_candidates = [(item, mention_candidates(item)) for item in items]
 
     protected = lambda it: bool(
-        getattr(it, "is_allowlisted", False) or getattr(it, "is_trusted_saas", False)
+        getattr(it, "is_allowlisted", False)
+        or getattr(it, "is_trusted_saas", False)
+        or getattr(it, "is_client_allowlisted", False)
+        or getattr(it, "is_client_sender_flag", False)
+        or getattr(it, "is_tenant", False)
     )
     suspicious_roots = {
         (getattr(it, "root_domain", "") or getattr(it, "normalized", "")).lower()
@@ -357,6 +434,13 @@ def analyze_context(items, context: str) -> None:
             for item, candidates in per_item_candidates
             if any(candidate in lower for candidate in candidates)
         ]
+        if not mentioned:
+            # Referentes genéricos: "la URL", "el dominio", "el remitente".
+            # Si la frase habla de un tipo de IOC y solo hay un IOC de ese
+            # tipo en el análisis, la frase se refiere a él (señal directa),
+            # incluso si el IOC está protegido (p. ej. abuso confirmado de
+            # una URL exacta sobre SaaS legítimo).
+            mentioned = _generic_referent_targets(lower, items)
         if mentioned:
             for item in mentioned:
                 for name, kind, weight, desc, sent in found:
@@ -374,6 +458,22 @@ def analyze_context(items, context: str) -> None:
                 for name, kind, weight, desc, sent in found:
                     direct = single_infrastructure and kind == "strong"
                     _add_signal(item, name, kind, weight, direct=direct, desc=desc, sentence=sent)
+
+
+def _generic_referent_targets(sentence_lower: str, items) -> list:
+    """Resuelve referentes genéricos a un único IOC del tipo mencionado."""
+    referents = (
+        (("la url", "el enlace", "the url", "the link", "dicha url"), {"url"}),
+        (("el dominio", "the domain", "dicho dominio"), {"domain"}),
+        (("el remitente", "el sender", "the sender", "el correo fue enviado"), {"email"}),
+        (("la ip", "the ip"), {"ip"}),
+    )
+    for phrases, kinds in referents:
+        if any(phrase in sentence_lower for phrase in phrases):
+            candidates = [it for it in items if getattr(it, "ioc_type", "") in kinds]
+            if len(candidates) == 1:
+                return candidates
+    return []
 
 
 def _add_signal(item, name: str, kind: str, weight: int, direct: bool, desc: str, sentence: str) -> None:

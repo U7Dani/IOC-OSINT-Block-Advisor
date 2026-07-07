@@ -1,0 +1,6 @@
+# Remitentes legítimos protegidos.
+# Formatos admitidos:
+#   usuario@dominio.com   -> remitente exacto
+#   @dominio.com          -> cualquier remitente del dominio
+#   dominio.com           -> cualquier remitente del dominio o subdominios
+@fluidra.com

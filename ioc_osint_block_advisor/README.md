@@ -130,6 +130,30 @@ pytest
 
 Este MVP prioriza recomendaciones conservadoras y explicables. OSINT externo puede ser incompleto, rate-limited o no responder. OTX no debe usarse como única fuente para bloqueo. La decisión final debe validarla un analista.
 
+## Allowlists por capas y protección de cliente (Fluidra)
+
+La herramienta distingue entre capas de allowlist con semánticas distintas. No es lo mismo "microsoft.com es SaaS legítimo" que "este tenant de SharePoint pertenece a Fluidra":
+
+| Capa | Fichero | Efecto |
+|---|---|---|
+| Allowlist de cliente | `config/client_allowlist_domains.txt` | Protección fuerte (Fluidra, clientes/proveedores confirmados): **nunca** `BLOCK_DOMAIN` ni `BLOCK_SENDER_EXACT`. Decisión `DO_NOT_BLOCK` o `REVIEW` con riesgo de FP Alto. -80 al score. |
+| Remitentes de cliente | `config/client_allowlist_senders.txt` | Remitentes protegidos (`usuario@dominio`, `@dominio` o `dominio`). Mismo efecto que la capa de cliente. |
+| Tenants corporativos | `config/client_tenant_domains.txt` | Tenants SaaS legítimos del cliente (p. ej. `fluidra.sharepoint.com`). Protección de cliente; verificar cada tenant antes de añadirlo. |
+| Marcas protegidas | `config/client_allowlist_keywords.txt` | No legitiman nada: sirven para detectar suplantación léxica. Un dominio NO protegido que contenga la marca (incluso con homógrafos: `flu1dra`) genera la señal fuerte `brand_impersonation` (+35). |
+| Trusted SaaS | `config/trusted_saas_domains.txt` | Plataforma legítima genérica: nunca `BLOCK_DOMAIN`; `BLOCK_URL_EXACT` solo con abuso confirmado de la URL exacta. -60 al score. |
+| Allowlist general | `config/allowlist_domains.txt` | Reduce score (-50) y exige evidencia excepcional; no oculta una URL exacta maliciosa confirmada. |
+| Review-only | `config/review_only_domains.txt` | Nunca bloqueo automático: la decisión queda como máximo en `REVIEW` (prioridad alta si la evidencia es fuerte). |
+
+Importante: que un dominio contenga la palabra "fluidra" no lo convierte en Fluidra. `login-fluidra-security.example` se trata como suplantación de marca y puede terminar en `BLOCK_DOMAIN`; `portal.fluidra.com` queda protegido por la allowlist de cliente.
+
+## Umbrales y gating
+
+Los umbrales (score ≥ 90 bloqueo, 60–89 REVIEW alta, 30–59 REVIEW, < 30 observado/no bloquear) nunca se aplican solos. Las decisiones `BLOCK_*` exigen además reglas de gating: al menos dos señales fuertes con una de ellas ligada explícitamente al IOC (`required_direct_malicious_signal`), y que el IOC no esté protegido por cliente/trusted SaaS/review-only. Los gates activos se registran en el razonamiento del analista de cada IOC.
+
+## OSINT externo
+
+OSINT externo está **deshabilitado por defecto**. Sin OSINT, la herramienta analiza solo con contexto, reglas locales y configuración, y lo indica explícitamente ("OSINT externo no consultado"); no inventa reputación. Si se habilita, por defecto **no se envían URLs completas a terceros**: urlhaus/threatfox/otx se consultan por dominio y urlscan/PhishTank quedan `not_checked`, salvo que se active la opción separada "Incluir URL completa en OSINT". Los veredictos se normalizan a `malicious / suspicious / clean / unknown / not_checked / error` y las fuentes consultadas se registran por IOC.
+
 ## Motor de decisión contextual (v2)
 
 El análisis lee el contexto de la investigación frase a frase y asocia señales a cada IOC:

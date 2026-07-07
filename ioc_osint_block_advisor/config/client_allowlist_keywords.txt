@@ -1,0 +1,5 @@
+# Marcas/keywords protegidas del cliente. Se usan para detectar
+# suplantación léxica (typosquatting/lookalike): si un dominio NO
+# protegido contiene una de estas marcas, se genera la señal fuerte
+# brand_impersonation. No legitiman nada por sí solas.
+fluidra
