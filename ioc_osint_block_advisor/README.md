@@ -52,31 +52,43 @@ Las blocklists solo incluyen decisiones de bloqueo:
 
 ## Configuración `.env`
 
-Copia `.env.example` a `.env` si quieres usar APIs opcionales:
+Copia `.env.example` (en la raíz del repositorio) a `.env` si quieres usar APIs opcionales:
 
 ```text
+VT_API_KEY=
+ABUSEIPDB_API_KEY=
 OTX_API_KEY=
 URLSCAN_API_KEY=
 URLSCAN_AUTO_SUBMIT=false
+PHISHTANK_API_KEY=
 ```
 
-Por diseño, `URLSCAN_AUTO_SUBMIT=false` evita enviar URLs nuevas a escaneo público.
+Ninguna clave es obligatoria. Si falta una, la fuente correspondiente se marca como "no configurada" (`skipped`) y la herramienta sigue funcionando con el resto de señales; nunca falla ni bloquea la app por falta de API key. Por diseño, `URLSCAN_AUTO_SUBMIT=false` evita enviar URLs nuevas a escaneo público.
 
 ## Fuentes OSINT
 
-- DNS con `dnspython`
-- RDAP vía `rdap.org`
-- crt.sh
-- URLhaus
-- ThreatFox
-- MalwareBazaar para hashes
-- PhishTank como módulo opcional no consultado en el MVP
-- AlienVault OTX con API key opcional
-- urlscan.io buscando scans existentes
+Arquitectura multi-proveedor en `osint_runner.py`: cada proveedor devuelve un resultado con esquema legado (`source/status/score_delta/evidence`) envuelto además en el esquema estructurado solicitado (`provider/checked/artifact_type/verdict/confidence/details/error`).
 
-Todas las fuentes tienen timeout y control de errores. Si una fuente falla, la aplicación continúa. Un resultado sin detección en OSINT no se interpreta como benigno.
+| Fuente | Artefactos | Requiere API key |
+|---|---|---|
+| DNS (`dnspython`) | dominio | No |
+| RDAP (`rdap.org`) | dominio | No |
+| crt.sh | dominio | No |
+| URLHaus | dominio / URL | No |
+| ThreatFox | dominio / IP / URL / hash | No |
+| MalwareBazaar | hash | No |
+| VirusTotal | dominio / URL / IP / hash | Sí (`VT_API_KEY`) |
+| AbuseIPDB | IP | Sí (`ABUSEIPDB_API_KEY`) |
+| AlienVault OTX | dominio / IP / URL / hash | Sí (`OTX_API_KEY`) |
+| PhishTank | URL (solo si se activa "incluir URL completa") | No |
+| urlscan.io | URL (solo si se activa "incluir URL completa") | Opcional (`URLSCAN_API_KEY`) |
+
+Correo: no existe fuente OSINT de reputación de remitente integrada; se deja explícito (`email_reputation: skipped`) en vez de inventar un veredicto, y se recomienda validar mediante SPF/DKIM/DMARC y contexto.
+
+Veredictos normalizados: `malicious`, `suspicious`, `clean`, `unknown`, `not_checked`, `error`. Todas las fuentes tienen timeout y control de errores; si una fuente falla o no está configurada, la aplicación continúa y no lo interpreta como benigno ni como malicioso.
 
 ## Decisiones
+
 
 Decisiones posibles:
 
@@ -92,7 +104,28 @@ La allowlist prevalece sobre el score. Dominios como `zoom.us`, `events.zoom.us`
 
 Un sender observado no debe bloquearse solo por aparecer en un correo sospechoso. Un dominio recién creado suma riesgo, pero por sí solo no justifica bloqueo.
 
-## Seguridad y privacidad
+## Interfaz: visibilidad y jerarquía visual
+
+- Fuentes y espaciados aumentados en toda la app (tabla, panel de detalle, resumen ejecutivo) para mejorar la lectura.
+- El panel de detalle abre con un badge grande de estado: 🔴 BLOQUEABLE, 🟠 REVISAR (prioridad alta), 🟡 REVISAR, 🟢 NO BLOQUEAR o 🔵 SOLO OBSERVADO, y un segundo badge morado "🛡 Protegido por allowlist de cliente" cuando aplica.
+- La tabla de resultados incluye ahora una columna "Protección" y usa zebra striping combinado con el color de la decisión (rojo/naranja/amarillo/verde/azul) para que las filas se lean con más contraste sin perder la codificación por color.
+- El resumen ejecutivo añade un contador de "Protegidos" junto a Total, Bloqueables, En revisión, No bloqueables y Score medio.
+- "Copiar para bloqueo" y el resto de acciones rápidas se habilitan/deshabilitan visualmente según haya o no un valor bloqueable para el IOC seleccionado.
+
+## Configuración y privacidad
+
+Ficheros de configuración en `config/` (todos editables, cada uno vacío por defecto salvo los indicados):
+
+- `allowlist_domains.txt` — allowlist técnica general.
+- `trusted_saas_domains.txt` — plataformas SaaS legítimas genéricas.
+- `client_allowlist_domains.txt` — dominios de la organización protegida (Fluidra).
+- `client_allowlist_senders.txt` — remitentes protegidos.
+- `client_allowlist_keywords.txt` — marcas para detectar suplantación léxica.
+- `client_tenant_domains.txt` — tenants corporativos legítimos (SharePoint/OneDrive...).
+- `review_only_domains.txt` — dominios que nunca se bloquean automáticamente.
+- `suspicious_keywords.txt` — palabras clave sospechosas.
+
+Si una API OSINT no está configurada, la fuente correspondiente se marca "no configurada" (`skipped`) y la aplicación sigue funcionando con normalidad: nunca falla ni bloquea el análisis por falta de una clave.
 
 La herramienta:
 
