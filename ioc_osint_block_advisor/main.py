@@ -35,6 +35,8 @@ COLORS = {
     "red_bg": "#3b1828",
     "yellow": "#ffd166",
     "yellow_bg": "#3b2c14",
+    "orange": "#ffab5e",
+    "orange_bg": "#42260f",
     "green": "#74d99f",
     "green_bg": "#153826",
     "observed_bg": "#173452",
@@ -403,6 +405,7 @@ class App(tk.Tk):
             "sources": tk.StringVar(value="-"),
             "block_value": tk.StringVar(value="No bloqueable"),
             "confidence": tk.StringVar(value="-"),
+            "protection": tk.StringVar(value="-"),
         }
         rows = (
             ("IOC", "ioc"),
@@ -413,6 +416,7 @@ class App(tk.Tk):
             ("Fuentes OSINT", "sources"),
             ("Valor para bloqueo", "block_value"),
             ("Confianza", "confidence"),
+            ("Protección", "protection"),
         )
         for index, (label, key) in enumerate(rows):
             ttk.Label(frame, text=f"{label}:", style="Field.TLabel").grid(row=index, column=0, sticky="nw", padx=(0, 10), pady=3)
@@ -448,6 +452,7 @@ class App(tk.Tk):
         frame.columnconfigure(0, weight=1)
 
         self.use_osint = tk.BooleanVar(value=False)
+        self.osint_url_lookups = tk.BooleanVar(value=False)
         self.analyze_button = ttk.Button(frame, text="🔍 Analizar IOCs", command=self.analyze, style="Primary.TButton")
         self.export_button = ttk.Button(frame, text="⬇ Exportar resultados", command=self.export, style="Secondary.TButton")
         self.clear_button = ttk.Button(frame, text="🧹 Limpiar", command=self.clear, style="Dark.TButton")
@@ -455,12 +460,18 @@ class App(tk.Tk):
         self.copy_block_button = ttk.Button(frame, text="🛡 Copiar para bloqueo", command=self.copy_blockable_ioc, state="disabled", style="Danger.TButton")
         self.copy_ticket_button = ttk.Button(frame, text="🧾 Copiar resumen para ticket", command=self.copy_ticket_summary, state="disabled", style="Secondary.TButton")
         self.osint_check = ttk.Checkbutton(frame, text="Consultar OSINT externo", variable=self.use_osint)
+        self.osint_url_check = ttk.Checkbutton(
+            frame,
+            text="Incluir URL completa en OSINT (urlscan/PhishTank)",
+            variable=self.osint_url_lookups,
+        )
 
         for index, button in enumerate(
             (self.analyze_button, self.export_button, self.clear_button, self.copy_ioc_button, self.copy_block_button, self.copy_ticket_button)
         ):
             button.grid(row=index, column=0, sticky="ew", pady=(0, 8))
         self.osint_check.grid(row=6, column=0, sticky="w", pady=(8, 0))
+        self.osint_url_check.grid(row=7, column=0, sticky="w", pady=(2, 0))
         ttk.Label(frame, text="(puede exponer IOCs a terceros)", style="SmallMuted.TLabel").grid(row=7, column=0, sticky="w", pady=(2, 0))
 
     def analyze(self) -> None:
@@ -471,11 +482,11 @@ class App(tk.Tk):
             return
         self.status.set("Analizando...")
         self._set_analysis_state("disabled")
-        thread = threading.Thread(target=self._analyze_worker, args=(context, iocs, self.use_osint.get()), daemon=True)
+        thread = threading.Thread(target=self._analyze_worker, args=(context, iocs, self.use_osint.get(), self.osint_url_lookups.get()), daemon=True)
         thread.start()
         self.after(200, self._poll_worker)
 
-    def _analyze_worker(self, context: str, iocs: str, use_osint: bool) -> None:
+    def _analyze_worker(self, context: str, iocs: str, use_osint: bool, include_url_lookups: bool = False) -> None:
         try:
             extracted = extract_iocs(context, iocs)
             allowlist = load_allowlist()
@@ -495,7 +506,7 @@ class App(tk.Tk):
             for item in classified:
                 try:
                     if use_osint:
-                        collect_osint(item)
+                        collect_osint(item, include_url_lookups=include_url_lookups)
                     decided.extend(decide_many([item]))
                 except Exception as exc:
                     decided.append(self._fallback_review_item(item, exc))
@@ -557,7 +568,7 @@ class App(tk.Tk):
         self.selected_result = None
         self._clear_detail()
         for item in self.results:
-            iid = self.table.insert("", "end", values=self._row_values(item), tags=(self._tag_for_decision(self._field(item, "decision")),))
+            iid = self.table.insert("", "end", values=self._row_values(item), tags=(self._tag_for_decision(self._field(item, "decision"), self._field(item, "review_priority")),))
             self.result_by_iid[iid] = item
         self.apply_table_tags()
 
@@ -608,8 +619,17 @@ class App(tk.Tk):
         self.detail_vars["sources"].set(self._sources(item))
         self.detail_vars["block_value"].set(blockable_value or "No bloqueable")
         self.detail_vars["confidence"].set(self._field(item, "confidence") or "-")
+        self.detail_vars["protection"].set(self._protection_label(item))
+        decision_display = self._field(item, "decision") or "-"
+        priority = self._field(item, "review_priority")
+        if decision_display == "REVIEW" and priority:
+            decision_display = f"REVIEW (prioridad {priority})"
+        self.detail_vars["decision"].set(decision_display)
         reason = self._field(item, "reason") or "-"
+        conclusion = self._field(item, "soc_conclusion")
         reasoning = self._field(item, "analyst_reasoning")
+        if conclusion:
+            reason = f"Conclusión SOC: {conclusion}\n\n{reason}"
         if reasoning:
             reason = f"{reason}\n\n{reasoning}"
         self._set_reason(reason)
@@ -654,36 +674,58 @@ class App(tk.Tk):
         item = self.selected_result
         if not item:
             return
+        positives = self._field(item, "positive_signals", default=[]) or []
+        negatives = self._field(item, "negative_signals", default=[]) or []
         evidence = self._field(item, "evidence", default=[]) or []
         if isinstance(evidence, str):
             evidence = [evidence]
-        evidence_lines = [f"  - {entry}" for entry in evidence] or ["  - Sin evidencias registradas."]
+        positive_evidence = [e for e in evidence if not self._is_negative_evidence(e)]
+        negative_evidence = [e.replace("[cautela] ", "", 1) for e in evidence if self._is_negative_evidence(e)]
         block_value = self._field(item, "block_value") or self.get_blockable_value(item) or "No bloqueable"
-        summary = "\n".join(
-            (
-                f"IOC: {self._field(item, 'normalized') or self._field(item, 'original')}",
-                f"Tipo: {self._field(item, 'ioc_type', 'type')}",
-                f"Dominio raíz: {self._field(item, 'root_domain') or '-'}",
-                f"Rol: {self._field(item, 'role') or '-'}",
-                f"Decisión: {self._field(item, 'decision')}",
-                f"Valor para bloqueo: {block_value}",
-                f"Riesgo de falso positivo: {self._field(item, 'false_positive_risk', 'fp_risk')}",
-                f"Confianza: {self._field(item, 'confidence') or '-'}",
-                "Evidencias:",
-                *evidence_lines,
-                f"Motivo: {self._field(item, 'reason')}",
-                f"Acción recomendada: {self._field(item, 'recommended_action', 'action')}",
-                f"Fuentes OSINT: {self._sources(item)}",
-                "Nota: La recomendación debe validarse antes de aplicar bloqueo.",
-            )
-        )
+        sources = self._field(item, "sources_used", default=[]) or []
+        sources_text = ", ".join(sources) if isinstance(sources, list) else str(sources or self._sources(item))
+        decision_display = self._field(item, "decision")
+        priority = self._field(item, "review_priority")
+        if decision_display == "REVIEW" and priority:
+            decision_display = f"REVIEW (prioridad {priority})"
+        lines = [
+            f"IOC: {self._field(item, 'normalized') or self._field(item, 'original')}",
+            f"Tipo: {self._field(item, 'ioc_type', 'type')}",
+            f"Dominio raíz: {self._field(item, 'root_domain') or '-'}",
+            f"Rol: {self._field(item, 'role') or '-'}",
+            f"Decisión: {decision_display}",
+            f"Confianza: {self._field(item, 'confidence') or '-'}",
+            f"Score: {self._field(item, 'score', default=0)}",
+            f"Valor para bloqueo: {block_value}",
+            f"Riesgo de falso positivo: {self._field(item, 'false_positive_risk', 'fp_risk')}",
+            f"Protección: {self._protection_label(item)}",
+            f"Fuentes consultadas: {sources_text or self._sources(item)}",
+            "Evidencias positivas (a favor de bloquear):",
+        ]
+        lines.extend([f"- {e}" for e in positive_evidence] or ["- Ninguna."])
+        lines.append("Evidencias negativas / cautelas:")
+        lines.extend([f"- {e}" for e in negative_evidence] or ["- Ninguna."])
+        conclusion = self._field(item, "soc_conclusion")
+        if conclusion:
+            lines.extend(["Conclusión SOC:", conclusion])
+        reasoning = self._field(item, "analyst_reasoning")
+        if reasoning:
+            lines.extend(["Razonamiento:", reasoning])
+        lines.append(f"Acción recomendada: {self._field(item, 'recommended_action', 'action')}")
+        lines.append("Nota: La recomendación debe validarse antes de aplicar bloqueo.")
+        summary = "\n".join(lines)
         self.clipboard_clear()
         self.clipboard_append(summary)
         self.status.set("Resumen del IOC copiado para ticket.")
 
+    @staticmethod
+    def _is_negative_evidence(entry: str) -> bool:
+        return str(entry).startswith("[cautela]")
+
     def apply_table_tags(self) -> None:
         self.table.tag_configure("block", background=COLORS["red_bg"], foreground="#ffe8eb")
         self.table.tag_configure("review", background=COLORS["yellow_bg"], foreground="#fff1c1")
+        self.table.tag_configure("review_high", background=COLORS["orange_bg"], foreground=COLORS["orange"])
         self.table.tag_configure("do_not_block", background=COLORS["green_bg"], foreground="#ddfbe8")
         self.table.tag_configure("observed", background=COLORS["observed_bg"], foreground="#d8eaff")
         self.table.tag_configure("default", background="#0b1626", foreground=COLORS["text"])
@@ -729,10 +771,29 @@ class App(tk.Tk):
         self.reason_text.configure(state="disabled")
 
     @staticmethod
-    def _tag_for_decision(decision: str) -> str:
+    def _protection_label(item) -> str:
+        protected_by = ""
+        if item is not None and not isinstance(item, dict):
+            protected_by = getattr(item, "protected_by", "") or ""
+        elif isinstance(item, dict):
+            protected_by = item.get("protected_by", "") or ""
+        labels = {
+            "client_allowlist": "🛡 Protegido por allowlist de cliente (Fluidra)",
+            "client_sender_allowlist": "🛡 Protegido por allowlist de remitentes de cliente (Fluidra)",
+            "client_tenant_allowlist": "🛡 Protegido por allowlist de tenants corporativos (Fluidra)",
+            "trusted_saas": "Plataforma SaaS confiable (trusted_saas)",
+            "allowlist": "Allowlist técnica general",
+            "review_only": "Review-only: nunca bloqueo automático",
+        }
+        return labels.get(protected_by, "Sin protección de allowlist")
+
+    @staticmethod
+    def _tag_for_decision(decision: str, priority: str = "") -> str:
         if decision in BLOCKING_DECISIONS:
             return "block"
         if decision == "REVIEW":
+            if str(priority).lower() in {"alta", "high"}:
+                return "review_high"
             return "review"
         if decision == "DO_NOT_BLOCK":
             return "do_not_block"

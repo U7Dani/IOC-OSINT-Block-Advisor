@@ -1,0 +1,5 @@
+# Tenants corporativos legítimos del cliente en plataformas SaaS
+# (SharePoint/OneDrive/M365...). Verificar cada tenant antes de añadirlo.
+# Protegidos como client allowlist: nunca BLOCK_DOMAIN automático.
+fluidra.sharepoint.com
+fluidra-my.sharepoint.com

@@ -1,0 +1,3 @@
+# Dominios que nunca deben bloquearse automáticamente pero que tampoco
+# conviene descartar: la decisión queda como máximo en REVIEW.
+# (vacío por defecto)
