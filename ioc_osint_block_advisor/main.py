@@ -92,8 +92,8 @@ class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("IOC OSINT Block Advisor")
-        self.geometry("1680x1020")
         self.minsize(1300, 820)
+        self._set_initial_geometry()
         self.configure(bg=COLORS["bg"])
         self.background_canvas: tk.Canvas | None = None
         self.results = []
@@ -102,6 +102,17 @@ class App(tk.Tk):
         self.worker_queue: queue.Queue = queue.Queue()
         self._build_ui()
 
+    def _set_initial_geometry(self) -> None:
+        # Usa hasta 1680x1020, pero nunca más que la pantalla disponible
+        # (evita que el panel derecho quede recortado en monitores pequeños).
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        width = max(1300, min(1680, int(screen_w * 0.92)))
+        height = max(820, min(1020, int(screen_h * 0.88)))
+        x = max((screen_w - width) // 2, 0)
+        y = max((screen_h - height) // 2, 0)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+
     def _build_ui(self) -> None:
         self.setup_styles()
         self.create_gradient_background(self)
@@ -109,23 +120,15 @@ class App(tk.Tk):
         self.rowconfigure(2, weight=1)
 
         self.create_header()
+        self._build_toolbar()
 
-        top = ttk.Frame(self, padding=(18, 14, 18, 7), style="App.TFrame")
-        top.grid(row=1, column=0, sticky="nsew")
-        top.columnconfigure(0, weight=3)
-        top.columnconfigure(1, weight=2)
-        top.columnconfigure(2, weight=2)
-
-        self.context_text = self._build_text_panel(top, "Contexto de la investigación", 0)
-        self.iocs_text = self._build_text_panel(top, "IOCs observados", 1)
-        self._build_summary_panel(top, 2)
-
-        # PanedWindow vertical: separa la tabla de resultados del panel de
-        # detalle, con un sash arrastrable para que el analista pueda
-        # extender la zona que necesite ver mejor en cada momento.
+        # PanedWindow horizontal: columna izquierda (entrada plegable + tabla
+        # de resultados) y columna derecha (inspector del IOC seleccionado),
+        # con un sash arrastrable. La tabla es el elemento principal y recibe
+        # la mayor parte del ancho; el inspector mantiene un ancho usable.
         self.main_paned = tk.PanedWindow(
             self,
-            orient=tk.VERTICAL,
+            orient=tk.HORIZONTAL,
             sashrelief="raised",
             sashwidth=7,
             bg=COLORS["border"],
@@ -134,23 +137,24 @@ class App(tk.Tk):
         )
         self.main_paned.grid(row=2, column=0, sticky="nsew")
 
-        center = ttk.Frame(self.main_paned, padding=(18, 7, 18, 4), style="App.TFrame")
-        center.columnconfigure(0, weight=1)
-        center.rowconfigure(0, weight=1)
-        self._build_table(center)
-        self.main_paned.add(center, minsize=240, stretch="always")
+        left = ttk.Frame(self.main_paned, padding=(18, 10, 9, 12), style="App.TFrame")
+        left.columnconfigure(0, weight=1)
+        left.rowconfigure(0, weight=0)
+        left.rowconfigure(1, weight=1)
+        self._build_input_panel(left)
+        self._build_table(left)
+        self.main_paned.add(left, minsize=620, stretch="always")
 
-        bottom = ttk.Frame(self.main_paned, padding=(18, 4, 18, 12), style="App.TFrame")
-        bottom.columnconfigure(0, weight=3)
-        bottom.columnconfigure(1, weight=1)
-        bottom.rowconfigure(0, weight=1)
-        self._build_detail_panel(bottom)
-        self._build_actions_panel(bottom)
-        self.main_paned.add(bottom, minsize=280, stretch="always")
+        right = ttk.Frame(self.main_paned, padding=(9, 10, 18, 12), style="App.TFrame")
+        right.columnconfigure(0, weight=1)
+        right.rowconfigure(0, weight=1)
+        self._build_inspector_panel(right)
+        self.main_paned.add(right, minsize=420, stretch="never")
 
-        # Dar a la tabla de resultados la mayor parte del espacio por
-        # defecto (el usuario puede arrastrar el separador para ajustarlo).
-        self.after(80, self._set_default_sash_position)
+        # El inspector mantiene un ancho por defecto razonable (~480px); el
+        # resto del ancho disponible se lo lleva la tabla de resultados. El
+        # analista puede arrastrar el separador para ajustarlo.
+        self.after(80, self._set_default_split_position)
 
         status_bar = ttk.Frame(self, padding=(18, 8), style="Status.TFrame")
         status_bar.grid(row=3, column=0, sticky="ew")
@@ -160,15 +164,15 @@ class App(tk.Tk):
         ttk.Label(status_bar, textvariable=self.status, style="Status.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(status_bar, textvariable=self.rule_status, style="Rule.TLabel").grid(row=0, column=1, sticky="e")
 
-    def _set_default_sash_position(self) -> None:
+    def _set_default_split_position(self) -> None:
         try:
-            total_height = self.main_paned.winfo_height()
-            if total_height <= 1:
-                self.after(120, self._set_default_sash_position)
+            total_width = self.main_paned.winfo_width()
+            if total_width <= 1:
+                self.after(120, self._set_default_split_position)
                 return
-            # ~58% del alto disponible para la tabla de resultados; el resto
-            # para el panel de detalle. El usuario puede arrastrar el sash.
-            self.main_paned.sash_place(0, 0, int(total_height * 0.58))
+            inspector_width = 480
+            sash_x = max(int(total_width * 0.55), total_width - inspector_width)
+            self.main_paned.sash_place(0, sash_x, 0)
         except tk.TclError:
             pass
 
@@ -193,19 +197,22 @@ class App(tk.Tk):
         style.configure("Title.TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Segoe UI", 22, "bold"))
         style.configure("Subtitle.TLabel", background=COLORS["bg"], foreground=COLORS["muted"], font=("Segoe UI", 11))
         style.configure("HeaderIcon.TLabel", background=COLORS["bg"], foreground=COLORS["cyan"], font=("Segoe UI Emoji", 27))
-        style.configure("Field.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 10, "bold"))
-        style.configure("Value.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 10))
-        style.configure("HighlightValue.TLabel", background=COLORS["panel"], foreground=COLORS["cyan"], font=("Segoe UI", 12, "bold"))
+        style.configure("Field.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 11, "bold"))
+        style.configure("Value.TLabel", background=COLORS["panel"], foreground=COLORS["text"], font=("Segoe UI", 11))
+        style.configure("HighlightValue.TLabel", background=COLORS["panel"], foreground=COLORS["cyan"], font=("Segoe UI", 13, "bold"))
         style.configure("Status.TLabel", background="#0a1932", foreground=COLORS["cyan"], font=("Segoe UI", 10, "bold"))
         style.configure("Rule.TLabel", background="#0a1932", foreground=COLORS["muted"], font=("Segoe UI", 10))
         style.configure("SmallMuted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Segoe UI", 9))
-        style.configure("SummaryLabel.TLabel", background=COLORS["panel_lift"], foreground=COLORS["muted"], font=("Segoe UI", 9, "bold"))
-        style.configure("SummaryTotal.TLabel", background=COLORS["panel_lift"], foreground=COLORS["blue"], font=("Segoe UI", 22, "bold"))
-        style.configure("SummaryBlock.TLabel", background=COLORS["panel_lift"], foreground=COLORS["red"], font=("Segoe UI", 22, "bold"))
-        style.configure("SummaryReview.TLabel", background=COLORS["panel_lift"], foreground=COLORS["yellow"], font=("Segoe UI", 22, "bold"))
-        style.configure("SummarySafe.TLabel", background=COLORS["panel_lift"], foreground=COLORS["green"], font=("Segoe UI", 22, "bold"))
-        style.configure("SummaryScore.TLabel", background=COLORS["panel_lift"], foreground=COLORS["cyan"], font=("Segoe UI", 22, "bold"))
-        style.configure("SummaryProtected.TLabel", background=COLORS["panel_lift"], foreground=COLORS["violet"], font=("Segoe UI", 22, "bold"))
+        style.configure("SummaryLabel.TLabel", background=COLORS["panel_lift"], foreground=COLORS["muted"], font=("Segoe UI", 8, "bold"))
+        style.configure("SummaryTotal.TLabel", background=COLORS["panel_lift"], foreground=COLORS["blue"], font=("Segoe UI", 16, "bold"))
+        style.configure("SummaryBlock.TLabel", background=COLORS["panel_lift"], foreground=COLORS["red"], font=("Segoe UI", 16, "bold"))
+        style.configure("SummaryReview.TLabel", background=COLORS["panel_lift"], foreground=COLORS["yellow"], font=("Segoe UI", 16, "bold"))
+        style.configure("SummarySafe.TLabel", background=COLORS["panel_lift"], foreground=COLORS["green"], font=("Segoe UI", 16, "bold"))
+        style.configure("SummaryScore.TLabel", background=COLORS["panel_lift"], foreground=COLORS["cyan"], font=("Segoe UI", 16, "bold"))
+        style.configure("SummaryProtected.TLabel", background=COLORS["panel_lift"], foreground=COLORS["violet"], font=("Segoe UI", 16, "bold"))
+        style.configure("Toolbar.TFrame", background=COLORS["panel"], relief="solid", borderwidth=1, bordercolor=COLORS["border"])
+        style.configure("InputHeader.TFrame", background=COLORS["panel_lift"])
+        style.configure("InputTitle.TLabel", background=COLORS["panel_lift"], foreground=COLORS["text"], font=("Segoe UI", 11, "bold"))
 
         style.configure("TScrollbar", background=COLORS["panel_alt"], troughcolor=COLORS["bg"], bordercolor=COLORS["border"], arrowcolor=COLORS["text"])
         style.configure(
@@ -214,8 +221,8 @@ class App(tk.Tk):
             fieldbackground="#0d1b31",
             foreground=COLORS["text"],
             bordercolor=COLORS["border"],
-            rowheight=34,
-            font=("Segoe UI", 10),
+            rowheight=36,
+            font=("Segoe UI", 11),
         )
         style.map("Treeview", background=[("selected", COLORS["selection"])], foreground=[("selected", "#ffffff")])
         style.configure(
@@ -224,7 +231,7 @@ class App(tk.Tk):
             foreground=COLORS["text"],
             bordercolor=COLORS["border"],
             relief="flat",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 11, "bold"),
         )
         style.map("Treeview.Heading", background=[("active", "#1d477a")])
 
@@ -243,7 +250,7 @@ class App(tk.Tk):
         style.configure("BadgeReview.TLabel", background=COLORS["yellow_bg"], foreground=COLORS["yellow"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
         style.configure("BadgeSafe.TLabel", background=COLORS["green_bg"], foreground=COLORS["green"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
         style.configure("BadgeObserved.TLabel", background=COLORS["observed_bg"], foreground=COLORS["cyan"], font=("Segoe UI", 13, "bold"), padding=(14, 8))
-        style.configure("BadgeProtected.TLabel", background="#241246", foreground="#c9a6ff", font=("Segoe UI", 11, "bold"), padding=(12, 6))
+        style.configure("BadgeProtected.TLabel", background="#0e3b36", foreground=COLORS["cyan"], font=("Segoe UI", 11, "bold"), padding=(12, 6))
 
         style.configure("TNotebook", background=COLORS["panel"], borderwidth=0)
         style.configure(
@@ -353,8 +360,9 @@ class App(tk.Tk):
             text="Herramienta OSINT para análisis y recomendación de bloqueo de IOCs",
             style="Subtitle.TLabel",
         ).grid(row=1, column=1, sticky="w")
+        self._build_summary_strip(header, column=2)
         accent = tk.Canvas(header, height=3, highlightthickness=0, bd=0, bg=COLORS["bg"])
-        accent.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        accent.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(12, 0))
         accent.bind("<Configure>", self._draw_header_accent)
 
     def _draw_header_accent(self, event) -> None:
@@ -369,8 +377,8 @@ class App(tk.Tk):
             x1 = int((index + 1) * width / segments) + 1
             canvas.create_rectangle(x0, 0, x1, 3, fill=color, outline="", tags="accent")
 
-    def create_card(self, parent: ttk.Frame, title: str) -> ttk.LabelFrame:
-        return ttk.LabelFrame(parent, text=title, style="Card.TLabelframe")
+    def create_card(self, parent: ttk.Frame, title: str, padding=(14, 12)) -> ttk.LabelFrame:
+        return ttk.LabelFrame(parent, text=title, style="Card.TLabelframe", padding=padding)
 
     def _build_text_panel(self, parent: ttk.Frame, title: str, column: int) -> tk.Text:
         frame = self.create_card(parent, title)
@@ -379,7 +387,7 @@ class App(tk.Tk):
         frame.rowconfigure(0, weight=1)
         text = tk.Text(
             frame,
-            height=9,
+            height=6,
             wrap="word",
             undo=True,
             font=("Consolas", 9),
@@ -398,11 +406,11 @@ class App(tk.Tk):
         scroll.grid(row=0, column=1, sticky="ns", padx=(6, 0))
         return text
 
-    def _build_summary_panel(self, parent: ttk.Frame, column: int) -> None:
-        frame = self.create_card(parent, "Resumen ejecutivo")
-        frame.grid(row=0, column=column, sticky="nsew")
-        for idx in range(2):
-            frame.columnconfigure(idx, weight=1)
+    def _build_summary_strip(self, parent: ttk.Frame, column: int) -> None:
+        # Resumen ejecutivo compacto: una fila de chips pequeños junto al
+        # título, en vez de un panel grande que ocupaba una columna entera.
+        frame = ttk.Frame(parent, style="Header.TFrame")
+        frame.grid(row=0, column=column, rowspan=2, sticky="e")
         self.summary_vars = {
             "total": tk.StringVar(value="0"),
             "blockable": tk.StringVar(value="0"),
@@ -412,29 +420,58 @@ class App(tk.Tk):
             "avg_score": tk.StringVar(value="0.0"),
         }
         metrics = (
-            ("Total IOCs", "total", "SummaryTotal.TLabel"),
+            ("Total", "total", "SummaryTotal.TLabel"),
             ("Bloqueables", "blockable", "SummaryBlock.TLabel"),
-            ("En revisión", "review", "SummaryReview.TLabel"),
+            ("Revisión", "review", "SummaryReview.TLabel"),
             ("Protegidos", "protected", "SummaryProtected.TLabel"),
             ("No bloqueables", "not_blockable", "SummarySafe.TLabel"),
             ("Score medio", "avg_score", "SummaryScore.TLabel"),
         )
-        for index, (label, key, value_style) in enumerate(metrics):
-            row = index // 2
-            col = index % 2
-            card = ttk.Frame(frame, padding=(10, 8), style="Metric.TFrame")
-            card.grid(row=row, column=col, sticky="nsew", padx=4, pady=4)
-            card.columnconfigure(0, weight=1)
-            ttk.Label(card, text=label.upper(), style="SummaryLabel.TLabel").grid(row=0, column=0, sticky="w")
-            ttk.Label(card, textvariable=self.summary_vars[key], style=value_style).grid(row=1, column=0, sticky="w")
+        for label, key, value_style in metrics:
+            card = ttk.Frame(frame, padding=(8, 5), style="Metric.TFrame")
+            card.pack(side="left", padx=3)
+            ttk.Label(card, text=label.upper(), style="SummaryLabel.TLabel").pack(anchor="w")
+            ttk.Label(card, textvariable=self.summary_vars[key], style=value_style).pack(anchor="w")
+
+    def _build_input_panel(self, parent: ttk.Frame) -> None:
+        # Panel de entrada plegable: el analista puede ocultarlo tras pegar
+        # el contexto/IOCs para dar toda la altura disponible a la tabla.
+        outer = ttk.Frame(parent, style="App.TFrame")
+        outer.grid(row=0, column=0, sticky="new", pady=(0, 10))
+        outer.columnconfigure(0, weight=1)
+
+        header_row = ttk.Frame(outer, padding=(12, 8), style="InputHeader.TFrame")
+        header_row.grid(row=0, column=0, sticky="ew")
+        header_row.columnconfigure(0, weight=1)
+        ttk.Label(header_row, text="📥 Entrada de análisis", style="InputTitle.TLabel").grid(row=0, column=0, sticky="w")
+        self.toggle_input_button = ttk.Button(
+            header_row, text="🔽 Ocultar entrada", command=self._toggle_input_panel, style="Secondary.TButton"
+        )
+        self.toggle_input_button.grid(row=0, column=1, sticky="e")
+
+        self.input_body = ttk.Frame(outer, style="App.TFrame")
+        self.input_body.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
+        self.input_body.columnconfigure(0, weight=1)
+        self.input_body.columnconfigure(1, weight=1)
+
+        self.context_text = self._build_text_panel(self.input_body, "Contexto de la investigación", 0)
+        self.iocs_text = self._build_text_panel(self.input_body, "IOCs observados", 1)
+
+    def _toggle_input_panel(self) -> None:
+        if self.input_body.winfo_ismapped():
+            self.input_body.grid_remove()
+            self.toggle_input_button.configure(text="🔼 Mostrar entrada")
+        else:
+            self.input_body.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
+            self.toggle_input_button.configure(text="🔽 Ocultar entrada")
 
     def _build_table(self, parent: ttk.Frame) -> None:
         frame = self.create_card(parent, "Resultados")
-        frame.grid(row=0, column=0, sticky="nsew")
+        frame.grid(row=1, column=0, sticky="nsew")
         frame.columnconfigure(0, weight=1)
         frame.rowconfigure(0, weight=1)
 
-        self.table = ttk.Treeview(frame, columns=COLUMNS, show="headings", height=16, selectmode="browse")
+        self.table = ttk.Treeview(frame, columns=COLUMNS, show="headings", height=18, selectmode="browse")
         for column in COLUMNS:
             self.table.heading(column, text=HEADERS[column])
             self.table.column(column, width=COLUMN_WIDTHS[column], minwidth=60, stretch=column in {"normalized", "sources", "protection"})
@@ -447,11 +484,11 @@ class App(tk.Tk):
         self.table.bind("<<TreeviewSelect>>", self.on_result_selected)
         self.apply_table_tags()
 
-    def _build_detail_panel(self, parent: ttk.Frame) -> None:
-        frame = self.create_card(parent, "Detalle del IOC seleccionado")
-        frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+    def _build_inspector_panel(self, parent: ttk.Frame) -> None:
+        frame = self.create_card(parent, "Inspector del IOC")
+        frame.grid(row=0, column=0, sticky="nsew")
         frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(1, weight=1)
+        frame.rowconfigure(2, weight=1)
 
         badges_row = ttk.Frame(frame, style="CardBody.TFrame")
         badges_row.grid(row=0, column=0, sticky="ew", pady=(0, 10))
@@ -462,9 +499,6 @@ class App(tk.Tk):
         self.protection_badge = ttk.Label(badges_row, textvariable=self.protection_badge_var, style="BadgeProtected.TLabel")
         self.protection_badge.pack(side="left", padx=(10, 0))
         self.protection_badge.pack_forget()
-
-        self.detail_notebook = ttk.Notebook(frame)
-        self.detail_notebook.grid(row=1, column=0, sticky="nsew")
 
         self.detail_vars = {
             "ioc": tk.StringVar(value="-"),
@@ -480,61 +514,82 @@ class App(tk.Tk):
             "action": tk.StringVar(value="-"),
             "sources": tk.StringVar(value="-"),
         }
+        self._build_inspector_fields(frame)
+
+        self.detail_notebook = ttk.Notebook(frame)
+        self.detail_notebook.grid(row=2, column=0, sticky="nsew", pady=(10, 0))
 
         self._build_summary_tab()
         self._build_evidence_tab()
         self._build_osint_tab()
         self._build_ticket_tab()
 
+    def _build_inspector_fields(self, parent: ttk.Frame) -> None:
+        # Bloque siempre visible (no depende de cambiar de pestaña) con los
+        # campos clave del IOC seleccionado. Se compacta al máximo (pares de
+        # valores cortos en la misma fila, texto largo a fila completa) para
+        # dejarle a las pestañas de abajo toda la altura que se pueda.
+        fields = ttk.Frame(parent, style="CardBody.TFrame")
+        fields.grid(row=1, column=0, sticky="ew", pady=(0, 4))
+        fields.columnconfigure(1, weight=1)
+        fields.columnconfigure(3, weight=1)
+
+        ioc_row = ttk.Frame(fields, style="CardBody.TFrame")
+        ioc_row.grid(row=0, column=0, columnspan=4, sticky="ew", pady=(0, 6))
+        ioc_row.columnconfigure(0, weight=1)
+        ttk.Label(ioc_row, textvariable=self.detail_vars["ioc"], wraplength=300, style="HighlightValue.TLabel").grid(row=0, column=0, sticky="ew")
+        self.detail_copy_ioc_button = ttk.Button(ioc_row, text="📋 Copiar", command=self.copy_selected_ioc, state="disabled", style="Copy.TButton")
+        self.detail_copy_ioc_button.grid(row=0, column=1, sticky="e", padx=(10, 0))
+
+        # Pares de valores cortos (tipo/score, confianza/riesgo FP) comparten
+        # fila; los que pueden ser largos ocupan la fila completa.
+        paired_rows = (("Tipo", "type"), ("Score", "score")), (("Confianza", "confidence"), ("Riesgo FP", "risk"))
+        for row, pair in enumerate(paired_rows, start=1):
+            for pair_index, (label, key) in enumerate(pair):
+                col = pair_index * 2
+                ttk.Label(fields, text=f"{label}:", style="Field.TLabel").grid(row=row, column=col, sticky="nw", padx=(0, 6), pady=2)
+                ttk.Label(fields, textvariable=self.detail_vars[key], wraplength=110, style="Value.TLabel").grid(
+                    row=row, column=col + 1, sticky="ew", padx=(0, 12), pady=2
+                )
+
+        full_rows = (("Dominio raíz", "root_domain"), ("Rol", "role"), ("Protección", "protection"), ("Valor para bloqueo", "block_value"))
+        for index, (label, key) in enumerate(full_rows):
+            row = len(paired_rows) + 1 + index
+            ttk.Label(fields, text=f"{label}:", style="Field.TLabel").grid(row=row, column=0, sticky="nw", padx=(0, 10), pady=2)
+            value_style = "HighlightValue.TLabel" if key == "block_value" else "Value.TLabel"
+            ttk.Label(fields, textvariable=self.detail_vars[key], wraplength=280, style=value_style).grid(
+                row=row, column=1, columnspan=3, sticky="ew", pady=2
+            )
+
     def _build_summary_tab(self) -> None:
         tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
         self.detail_notebook.add(tab, text="📋 Resumen")
-        tab.columnconfigure(1, weight=1)
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(5, weight=1)
 
-        rows = (
-            ("IOC", "ioc"),
-            ("Tipo", "type"),
-            ("Dominio raíz", "root_domain"),
-            ("Rol", "role"),
-            ("Decisión", "decision"),
-            ("Score", "score"),
-            ("Confianza", "confidence"),
-            ("Protección", "protection"),
-            ("Valor para bloqueo", "block_value"),
-            ("Riesgo de falso positivo", "risk"),
-            ("Acción recomendada", "action"),
-        )
-        for index, (label, key) in enumerate(rows):
-            ttk.Label(tab, text=f"{label}:", style="Field.TLabel").grid(row=index, column=0, sticky="nw", padx=(0, 10), pady=4)
-            if key == "ioc":
-                ioc_row = ttk.Frame(tab, style="CardBody.TFrame")
-                ioc_row.grid(row=index, column=1, sticky="ew", pady=4)
-                ioc_row.columnconfigure(0, weight=1)
-                ttk.Label(ioc_row, textvariable=self.detail_vars[key], wraplength=780, style="HighlightValue.TLabel").grid(row=0, column=0, sticky="ew")
-                self.detail_copy_ioc_button = ttk.Button(ioc_row, text="📋 Copiar IOC", command=self.copy_selected_ioc, state="disabled", style="Copy.TButton")
-                self.detail_copy_ioc_button.grid(row=0, column=1, sticky="e", padx=(10, 0))
-            else:
-                style = "HighlightValue.TLabel" if key in {"decision", "block_value"} else "Value.TLabel"
-                ttk.Label(tab, textvariable=self.detail_vars[key], wraplength=900, style=style).grid(row=index, column=1, sticky="ew", pady=4)
+        ttk.Label(tab, text="Acción recomendada:", style="Field.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(tab, textvariable=self.detail_vars["action"], wraplength=400, style="Value.TLabel").grid(row=1, column=0, sticky="ew", pady=(2, 8))
+        ttk.Label(tab, text="Fuentes OSINT consultadas:", style="Field.TLabel").grid(row=2, column=0, sticky="w")
+        ttk.Label(tab, textvariable=self.detail_vars["sources"], wraplength=400, style="Value.TLabel").grid(row=3, column=0, sticky="w", pady=(2, 8))
+
+        ttk.Label(tab, text="Razonamiento y conclusión SOC", style="Field.TLabel").grid(row=4, column=0, sticky="nw")
+        self.reason_text = self._make_readonly_text(tab, height=10)
+        self.reason_text.grid(row=5, column=0, sticky="nsew", pady=(4, 0))
 
     def _build_evidence_tab(self) -> None:
         tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
         self.detail_notebook.add(tab, text="🧾 Evidencias")
         tab.columnconfigure(0, weight=1)
-        tab.columnconfigure(1, weight=1)
         tab.rowconfigure(1, weight=1)
         tab.rowconfigure(3, weight=1)
 
         ttk.Label(tab, text="Evidencias positivas (a favor de bloquear)", style="Field.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
-        ttk.Label(tab, text="Evidencias negativas / cautelas", style="Field.TLabel").grid(row=0, column=1, sticky="w", padx=(12, 0), pady=(0, 4))
-        self.positive_evidence_text = self._make_readonly_text(tab, height=6)
-        self.positive_evidence_text.grid(row=1, column=0, sticky="nsew", padx=(0, 6))
-        self.negative_evidence_text = self._make_readonly_text(tab, height=6)
-        self.negative_evidence_text.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
+        self.positive_evidence_text = self._make_readonly_text(tab, height=7)
+        self.positive_evidence_text.grid(row=1, column=0, sticky="nsew")
 
-        ttk.Label(tab, text="Razonamiento y conclusión SOC", style="Field.TLabel").grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 4))
-        self.reason_text = self._make_readonly_text(tab, height=8)
-        self.reason_text.grid(row=3, column=0, columnspan=2, sticky="nsew")
+        ttk.Label(tab, text="Evidencias negativas / cautelas", style="Field.TLabel").grid(row=2, column=0, sticky="w", pady=(10, 4))
+        self.negative_evidence_text = self._make_readonly_text(tab, height=7)
+        self.negative_evidence_text.grid(row=3, column=0, sticky="nsew")
 
     def _build_osint_tab(self) -> None:
         tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
@@ -570,7 +625,7 @@ class App(tk.Tk):
             parent,
             height=height,
             wrap="word",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 11),
             state="disabled",
             bg="#0a1424",
             fg=COLORS["text"],
@@ -581,33 +636,43 @@ class App(tk.Tk):
         )
         return widget
 
-    def _build_actions_panel(self, parent: ttk.Frame) -> None:
-        frame = self.create_card(parent, "Acciones rápidas")
-        frame.grid(row=0, column=1, sticky="nsew")
-        frame.columnconfigure(0, weight=1)
+    def _build_toolbar(self) -> None:
+        # Barra horizontal superior: acciones rápidas + opciones de OSINT.
+        # No ocupa una columna dedicada, así se libera espacio para la tabla
+        # y el inspector.
+        frame = ttk.Frame(self, padding=(16, 8, 16, 8), style="Toolbar.TFrame")
+        frame.grid(row=1, column=0, sticky="ew")
 
         self.use_osint = tk.BooleanVar(value=False)
         self.osint_url_lookups = tk.BooleanVar(value=False)
-        self.analyze_button = ttk.Button(frame, text="🔍 Analizar IOCs", command=self.analyze, style="Primary.TButton")
-        self.export_button = ttk.Button(frame, text="⬇ Exportar resultados", command=self.export, style="Secondary.TButton")
-        self.clear_button = ttk.Button(frame, text="🧹 Limpiar", command=self.clear, style="Dark.TButton")
-        self.copy_ioc_button = ttk.Button(frame, text="📋 Copiar IOC", command=self.copy_selected_ioc, state="disabled", style="Copy.TButton")
-        self.copy_block_button = ttk.Button(frame, text="🛡 Copiar para bloqueo", command=self.copy_blockable_ioc, state="disabled", style="Danger.TButton")
-        self.copy_ticket_button = ttk.Button(frame, text="🧾 Copiar resumen para ticket", command=self.copy_ticket_summary, state="disabled", style="Secondary.TButton")
-        self.osint_check = ttk.Checkbutton(frame, text="Consultar OSINT externo", variable=self.use_osint)
+
+        buttons_row = ttk.Frame(frame, style="Toolbar.TFrame")
+        buttons_row.pack(side="top", fill="x")
+
+        self.analyze_button = ttk.Button(buttons_row, text="🔍 Analizar IOCs", command=self.analyze, style="Primary.TButton")
+        self.export_button = ttk.Button(buttons_row, text="⬇ Exportar resultados", command=self.export, style="Secondary.TButton")
+        self.clear_button = ttk.Button(buttons_row, text="🧹 Limpiar", command=self.clear, style="Dark.TButton")
+        self.copy_ioc_button = ttk.Button(buttons_row, text="📋 Copiar IOC", command=self.copy_selected_ioc, state="disabled", style="Copy.TButton")
+        self.copy_block_button = ttk.Button(buttons_row, text="🛡 Copiar para bloqueo", command=self.copy_blockable_ioc, state="disabled", style="Danger.TButton")
+        self.copy_ticket_button = ttk.Button(
+            buttons_row, text="🧾 Copiar resumen para ticket", command=self.copy_ticket_summary, state="disabled", style="Secondary.TButton"
+        )
+        for button in (
+            self.analyze_button, self.export_button, self.clear_button, self.copy_ioc_button, self.copy_block_button, self.copy_ticket_button
+        ):
+            button.pack(side="left", padx=(0, 8))
+
+        options_row = ttk.Frame(frame, style="Toolbar.TFrame")
+        options_row.pack(side="top", fill="x", pady=(6, 0))
+        self.osint_check = ttk.Checkbutton(options_row, text="Consultar OSINT externo", variable=self.use_osint)
         self.osint_url_check = ttk.Checkbutton(
-            frame,
+            options_row,
             text="Incluir URL completa en OSINT (urlscan/PhishTank)",
             variable=self.osint_url_lookups,
         )
-
-        for index, button in enumerate(
-            (self.analyze_button, self.export_button, self.clear_button, self.copy_ioc_button, self.copy_block_button, self.copy_ticket_button)
-        ):
-            button.grid(row=index, column=0, sticky="ew", pady=(0, 8))
-        self.osint_check.grid(row=6, column=0, sticky="w", pady=(8, 0))
-        self.osint_url_check.grid(row=7, column=0, sticky="w", pady=(2, 0))
-        ttk.Label(frame, text="(puede exponer IOCs a terceros)", style="SmallMuted.TLabel").grid(row=7, column=0, sticky="w", pady=(2, 0))
+        self.osint_check.pack(side="left")
+        self.osint_url_check.pack(side="left", padx=(16, 6))
+        ttk.Label(options_row, text="(puede exponer IOCs a terceros)", style="SmallMuted.TLabel").pack(side="left")
 
     def analyze(self) -> None:
         context = self.context_text.get("1.0", "end").strip()
