@@ -127,6 +127,7 @@ class App(tk.Tk):
         self.result_by_iid: dict[str, object] = {}
         self.selected_result = None
         self.observed_selected_value: str | None = None
+        self.observed_rows: list[tuple[str, str]] = []
         self.worker_queue: queue.Queue = queue.Queue()
         self._build_ui()
 
@@ -167,38 +168,27 @@ class App(tk.Tk):
         left = ttk.Frame(self.main_paned, padding=(16, 10, 8, 12), style="App.TFrame")
         left.columnconfigure(0, weight=1)
         left.rowconfigure(0, weight=0)  # entrada (plegable)
-        left.rowconfigure(1, weight=1)  # observados + tabla (redimensionables)
+        left.rowconfigure(1, weight=0)  # barra compacta de observados
+        left.rowconfigure(2, weight=1)  # tabla de resultados
         self._build_input_panel(left)
 
-        # PanedWindow vertical: IOCs observados (arriba) y tabla de resultados
-        # (abajo, área principal). Ambos redimensionables mediante su sash.
-        self.content_paned = tk.PanedWindow(
-            left,
-            orient=tk.VERTICAL,
-            sashrelief="raised",
-            sashwidth=8,
-            bg=COLORS["border"],
-            bd=0,
-            opaqueresize=True,
-        )
-        self.content_paned.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
-
-        observed_frame = ttk.Frame(self.content_paned, style="App.TFrame")
+        # Barra compacta de IOCs observados; la tabla queda como area principal.
+        observed_frame = ttk.Frame(left, style="App.TFrame")
+        observed_frame.grid(row=1, column=0, sticky="ew", pady=(8, 6))
         self._build_observed_panel(observed_frame)
-        table_frame = ttk.Frame(self.content_paned, style="App.TFrame")
+        table_frame = ttk.Frame(left, style="App.TFrame")
+        table_frame.grid(row=2, column=0, sticky="nsew")
         self._build_table(table_frame)
-        self.content_paned.add(observed_frame, minsize=120, stretch="never")
-        self.content_paned.add(table_frame, minsize=240, stretch="always")
         self.main_paned.add(left, minsize=640, stretch="always")
 
-        right = ttk.Frame(self.main_paned, padding=(8, 10, 16, 12), style="App.TFrame")
-        right.columnconfigure(0, weight=1)
-        right.rowconfigure(0, weight=1)
-        self._build_inspector_panel(right)
-        self.main_paned.add(right, minsize=430, stretch="never")
+        self.inspector_pane = ttk.Frame(self.main_paned, padding=(8, 10, 16, 12), style="App.TFrame")
+        self.inspector_pane.columnconfigure(0, weight=1)
+        self.inspector_pane.rowconfigure(0, weight=1)
+        self._build_inspector_panel(self.inspector_pane)
+        self.inspector_visible = True
+        self.main_paned.add(self.inspector_pane, minsize=360, stretch="never")
 
         self.after(80, self._set_default_split_position)
-        self.after(120, self._set_default_content_split)
 
         status_bar = ttk.Frame(self, padding=(18, 8), style="Status.TFrame")
         status_bar.grid(row=3, column=0, sticky="ew")
@@ -214,21 +204,11 @@ class App(tk.Tk):
             if total_width <= 1:
                 self.after(120, self._set_default_split_position)
                 return
-            inspector_width = 500
-            sash_x = max(int(total_width * 0.56), total_width - inspector_width)
-            self.main_paned.sash_place(0, sash_x, 0)
-        except tk.TclError:
-            pass
-
-    def _set_default_content_split(self) -> None:
-        try:
-            total_height = self.content_paned.winfo_height()
-            if total_height <= 1:
-                self.after(120, self._set_default_content_split)
+            if not self.inspector_visible:
                 return
-            # El panel de observados arranca compacto (~165px) y la tabla se
-            # queda con el resto; el analista puede arrastrar el separador.
-            self.content_paned.sash_place(0, 1, 165)
+            inspector_width = 420
+            sash_x = min(max(760, total_width - inspector_width), max(total_width - 360, 1))
+            self.main_paned.sash_place(0, sash_x, 0)
         except tk.TclError:
             pass
 
@@ -467,7 +447,7 @@ class App(tk.Tk):
         frame.rowconfigure(0, weight=1)
         text = tk.Text(
             frame,
-            height=6,
+            height=3,
             wrap="word",
             undo=True,
             font=("Consolas", 10),
@@ -556,24 +536,40 @@ class App(tk.Tk):
         self.iocs_text.bind("<KeyRelease>", self._on_input_changed)
 
     def _toggle_input_panel(self) -> None:
-        if self.input_body.winfo_ismapped():
-            self.input_body.grid_remove()
-            self.toggle_input_button.configure(text="🔽 Mostrar entrada")
-        else:
+        self._set_input_panel_visible(not self.input_body.winfo_ismapped())
+
+    def _set_input_panel_visible(self, visible: bool) -> None:
+        if visible:
             self.input_body.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
             self.toggle_input_button.configure(text="🔼 Ocultar entrada")
+        else:
+            self.input_body.grid_remove()
+            self.toggle_input_button.configure(text="🔽 Mostrar entrada")
+
+    def _toggle_inspector_panel(self) -> None:
+        if self.inspector_visible:
+            self.main_paned.forget(self.inspector_pane)
+            self.inspector_visible = False
+            self.toggle_inspector_button.configure(text="Mostrar inspector")
+        else:
+            self.main_paned.add(self.inspector_pane, minsize=360, stretch="never")
+            self.inspector_visible = True
+            self.toggle_inspector_button.configure(text="Ocultar inspector")
+            self.after(80, self._set_default_split_position)
 
     def _build_observed_panel(self, parent) -> None:
         parent.columnconfigure(0, weight=1)
-        parent.rowconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=0)
         frame = self.create_card(parent, "IOCs observados")
-        frame.grid(row=0, column=0, sticky="nsew")
+        frame.grid(row=0, column=0, sticky="ew")
+        frame.configure(height=78)
+        frame.grid_propagate(False)
         frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(1, weight=1)
+        frame.rowconfigure(1, weight=0)
 
         # Fila de recuentos por tipo + total y botón de copiar.
         counts_row = ttk.Frame(frame, style="CardBody.TFrame")
-        counts_row.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        counts_row.grid(row=0, column=0, sticky="ew", pady=(0, 4))
         self.observed_count_vars = {
             key: tk.StringVar(value="0") for key in ("total", "url", "domain", "email", "ip", "hash")
         }
@@ -601,29 +597,30 @@ class App(tk.Tk):
         self.copy_observed_button.pack(side="right")
 
         body = ttk.Frame(frame, style="CardBody.TFrame")
-        body.grid(row=1, column=0, sticky="nsew")
+        body.grid(row=1, column=0, sticky="ew")
         body.columnconfigure(0, weight=1)
-        body.rowconfigure(0, weight=1)
 
-        self.observed_tree = ttk.Treeview(
+        self.observed_list = tk.Listbox(
             body,
-            columns=("type", "value"),
-            show="headings",
+            height=1,
+            activestyle="none",
+            exportselection=False,
             selectmode="browse",
-            style="Observed.Treeview",
+            font=("Consolas", 10),
+            bg="#0a1a30",
+            fg=COLORS["text"],
+            selectbackground=COLORS["selection"],
+            selectforeground="#ffffff",
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=COLORS["border"],
+            highlightcolor=COLORS["selection"],
         )
-        self.observed_tree.heading("type", text="Tipo")
-        self.observed_tree.heading("value", text="IOC normalizado")
-        self.observed_tree.column("type", width=110, minwidth=80, stretch=False, anchor="w")
-        self.observed_tree.column("value", width=440, minwidth=200, stretch=True, anchor="w")
-        y_scroll = ttk.Scrollbar(body, orient="vertical", command=self.observed_tree.yview)
-        self.observed_tree.configure(yscrollcommand=y_scroll.set)
-        self.observed_tree.grid(row=0, column=0, sticky="nsew")
-        y_scroll.grid(row=0, column=1, sticky="ns", padx=(6, 0))
-        self.observed_tree.bind("<<TreeviewSelect>>", self.on_observed_selected)
-
-        for observed_type, (bg, fg) in OBSERVED_TAGS.items():
-            self.observed_tree.tag_configure(observed_type, background=bg, foreground=fg)
+        x_scroll = ttk.Scrollbar(body, orient="horizontal", command=self.observed_list.xview)
+        self.observed_list.configure(xscrollcommand=x_scroll.set)
+        self.observed_list.grid(row=0, column=0, sticky="ew")
+        x_scroll.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+        self.observed_list.bind("<<ListboxSelect>>", self.on_observed_selected)
 
     @staticmethod
     def _observed_type(value: str) -> str | None:
@@ -678,9 +675,10 @@ class App(tk.Tk):
 
         rows.sort(key=lambda row: (OBSERVED_TYPE_ORDER[row[0]], row[1].lower()))
 
-        self.observed_tree.delete(*self.observed_tree.get_children())
+        self.observed_rows = rows
+        self.observed_list.delete(0, "end")
         for observed_type, value in rows:
-            self.observed_tree.insert("", "end", values=(OBSERVED_TYPE_LABELS[observed_type], value), tags=(observed_type,))
+            self.observed_list.insert("end", f"{OBSERVED_TYPE_LABELS[observed_type]}  {value}")
 
         for key in ("url", "domain", "email", "ip", "hash"):
             self.observed_count_vars[key].set(str(counts[key]))
@@ -690,13 +688,13 @@ class App(tk.Tk):
         self.copy_observed_button.configure(state="disabled")
 
     def on_observed_selected(self, event=None) -> None:
-        selected = self.observed_tree.selection()
+        selected = self.observed_list.curselection()
         if not selected:
             self.observed_selected_value = None
             self.copy_observed_button.configure(state="disabled")
             return
-        values = self.observed_tree.item(selected[0], "values")
-        value = values[1] if len(values) > 1 else ""
+        index = selected[0]
+        value = self.observed_rows[index][1] if index < len(self.observed_rows) else ""
         self.observed_selected_value = value or None
         self.copy_observed_button.configure(state="normal" if value else "disabled")
         if value:
@@ -894,8 +892,17 @@ class App(tk.Tk):
         self.copy_ticket_button = ttk.Button(
             buttons_row, text="🧾 Copiar resumen para ticket", command=self.copy_ticket_summary, state="disabled", style="Secondary.TButton"
         )
+        self.toggle_inspector_button = ttk.Button(
+            buttons_row, text="Ocultar inspector", command=self._toggle_inspector_panel, style="Secondary.TButton"
+        )
         for button in (
-            self.analyze_button, self.export_button, self.clear_button, self.copy_ioc_button, self.copy_block_button, self.copy_ticket_button
+            self.analyze_button,
+            self.export_button,
+            self.clear_button,
+            self.copy_ioc_button,
+            self.copy_block_button,
+            self.copy_ticket_button,
+            self.toggle_inspector_button,
         ):
             button.pack(side="left", padx=(0, 8))
 
@@ -997,6 +1004,7 @@ class App(tk.Tk):
         self._render_results()
         self.refresh_summary(self.results)
         self._refresh_observed()
+        self._set_input_panel_visible(False)
         self.status.set(f"Análisis completado: {len(self.results)} IOC(s)")
 
     def _render_results(self) -> None:
@@ -1277,7 +1285,8 @@ class App(tk.Tk):
         self.refresh_summary([])
         self._clear_detail()
         # Vacía también el panel de IOCs observados.
-        self.observed_tree.delete(*self.observed_tree.get_children())
+        self.observed_rows = []
+        self.observed_list.delete(0, "end")
         for key in ("url", "domain", "email", "ip", "hash", "total"):
             self.observed_count_vars[key].set("0")
         self.observed_selected_value = None
