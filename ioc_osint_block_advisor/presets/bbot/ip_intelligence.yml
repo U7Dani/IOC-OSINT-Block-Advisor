@@ -1,0 +1,21 @@
+# IOC OSINT Block Advisor - BBOT preset: IP Intelligence
+#
+# IOC OSINT Block Advisor configuration artifact (MIT). See NOTICE_BBOT.md.
+# Passive ASN/ownership/reverse-DNS/cloud-attribution enrichment for IPs.
+# Reminder: this application never auto-exports IPs to a blocklist
+# regardless of what this preset discovers (see decision_engine._decide_ip).
+
+description: "Inteligencia de IP - ASN, propiedad, reverse DNS, atribución cloud (pasivo)"
+
+flags:
+  - passive
+  - safe
+
+exclude_modules:
+  - portscan
+  - nuclei
+  - httpx
+  - gowitness
+
+output_modules:
+  - json

@@ -1,0 +1,23 @@
+# IOC OSINT Block Advisor - BBOT preset: Phishing Investigation
+#
+# IOC OSINT Block Advisor configuration artifact (MIT). See NOTICE_BBOT.md.
+# Passive lookalike-domain / certificate / historical-content enrichment
+# aimed at phishing-infrastructure triage. Still passive-only: use
+# "authorized_active" if you need to actually browse/screenshot the URL.
+
+description: "Investigación de phishing - dominios similares, certificados, contenido histórico (pasivo)"
+
+flags:
+  - passive
+  - safe
+  - subdomain-enum
+
+exclude_modules:
+  - portscan
+  - nuclei
+  - httpx
+  - gowitness
+  - ffuf
+
+output_modules:
+  - json

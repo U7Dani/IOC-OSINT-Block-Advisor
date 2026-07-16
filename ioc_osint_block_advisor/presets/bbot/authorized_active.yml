@@ -1,0 +1,32 @@
+# IOC OSINT Block Advisor - BBOT preset: Authorized Active
+#
+# IOC OSINT Block Advisor configuration artifact (MIT). See NOTICE_BBOT.md.
+#
+# WARNING: this preset makes DIRECT connections to the target (DNS
+# resolution beyond simple lookups, TLS/HTTP requests, port/service
+# fingerprinting, screenshots, subdomain takeover checks, and a curated set
+# of Nuclei templates). The application requires an explicit analyst
+# authorization confirmation before this preset can run (see
+# integrations/bbot and the "Enriquecimiento BBOT" UI panel) - do not
+# remove that confirmation gate when using this preset.
+#
+# Only use against infrastructure you are authorized to test.
+
+description: "Activo autorizado - conexión directa al objetivo (DNS activo, HTTP, fingerprinting, puertos, takeover, Nuclei seleccionado)"
+
+flags:
+  - active
+  - safe
+  - subdomain-enum
+  - web-basic
+
+modules:
+  - httpx
+  - wafw00f
+
+exclude_modules:
+  - ffuf
+  - dnsbrute_mutations
+
+output_modules:
+  - json

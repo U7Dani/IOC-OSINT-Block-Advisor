@@ -1,0 +1,22 @@
+# IOC OSINT Block Advisor - BBOT preset: Domain Infrastructure
+#
+# IOC OSINT Block Advisor configuration artifact (MIT). See NOTICE_BBOT.md.
+# Passive-only domain/subdomain and DNS infrastructure mapping.
+
+description: "Infraestructura de dominio - subdominios, DNS, certificados (pasivo)"
+
+flags:
+  - passive
+  - safe
+  - subdomain-enum
+
+exclude_modules:
+  - portscan
+  - nuclei
+  - httpx
+  - gowitness
+  - dnsbrute
+  - dnsbrute_mutations
+
+output_modules:
+  - json

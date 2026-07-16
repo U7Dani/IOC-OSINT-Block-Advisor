@@ -1,0 +1,30 @@
+# IOC OSINT Block Advisor - BBOT preset: SOC Passive Deep
+#
+# IOC OSINT Block Advisor configuration artifact (MIT), written against
+# BBOT's public preset YAML schema. See NOTICE_BBOT.md.
+#
+# Extends "soc_passive" with deeper passive sources (certificate
+# transparency, passive DNS, historical/wayback, public code repositories,
+# cloud/ASN intelligence) while keeping the same hard guarantee: never
+# contacts the target directly.
+
+description: "SOC Passive Deep - fuentes pasivas ampliadas (CT, passive DNS, histórico, repos públicos, cloud/ASN)"
+
+flags:
+  - passive
+  - safe
+  - subdomain-enum
+  - cloud-enum
+
+exclude_modules:
+  - portscan
+  - nuclei
+  - httpx
+  - gowitness
+  - wafw00f
+  - ffuf
+  - dnsbrute
+  - dnsbrute_mutations
+
+output_modules:
+  - json
