@@ -68,9 +68,9 @@ def _export_bbot_evidence(items, out: Path) -> dict[str, Path]:
                 "bbot_status": getattr(item, "bbot_status", ""),
                 "bbot_score_delta": getattr(item, "bbot_score_delta", 0),
                 "related_assets": getattr(item, "related_assets", []) or [],
-                "shared_infrastructure": [
-                    f["value"] for f in findings if f.get("label") in {"shared_cloud_infrastructure", "cdn_or_waf", "trusted_saas_relation"}
-                ],
+                "shared_infrastructure": sorted(
+                    {f["value"] for f in findings if f.get("label") in {"shared_cloud_infrastructure", "cdn_or_waf", "trusted_saas_relation"}}
+                ),
                 "direct_evidence_count": sum(1 for f in findings if f.get("direct")),
                 "indirect_evidence_count": sum(1 for f in findings if not f.get("direct")),
                 "reputation_findings": [f["label"] for f in findings if f.get("group") == "positive"],

@@ -370,6 +370,25 @@ docker pull blacklanternsecurity/bbot:stable
 
 Sin BBOT instalado, la aplicación sigue funcionando exactamente igual que antes de esta integración.
 
+### Matriz de validación real
+
+Esta integración se validó contra una instalación **real** de BBOT (no solo mocks). Resumen honesto de qué se probó de verdad y qué no:
+
+| Elemento | Estado |
+|---|---|
+| BBOT 3.0.0 instalado (pipx, dentro de WSL2 Ubuntu-24.04; el `pip install` nativo en Windows falla porque `blasthttp` no publica wheel para Windows y requiere toolchain Rust+MSVC) | **Validado en real** |
+| `bbot --version`, `-l`, `-lp`, `-lo`, `-lf`, `-lmo` interpretados por el parser | **Validado en real** (122 módulos, presets, flags y opciones reales) |
+| Runtime **WSL** (detección, ejecución, cancelación, timeout, caché) | **Validado en real** |
+| Runtime **Native** (Windows) | No validado (BBOT no es instalable de forma nativa en Windows sin toolchain de compilación; ver arriba) |
+| Runtime **Docker** | No validado (Docker no disponible en el entorno de validación); tests solo con mocks |
+| Escaneo pasivo real (perfil SOC Passive, objetivo `example.com` — dominio reservado IANA para documentación/pruebas, RFC 2606, solo consultas pasivas DNS/CT) | **Validado en real** |
+| Escaneo activo real (perfil Authorized Active, laboratorio local `127.0.0.1` dentro de la misma distro WSL) | **Validado en real** |
+| Relaciones padre-hijo, parser JSON, mapper (caps de score, deduplicación) | **Validado en real** (con eventos reales, no solo fixtures sintéticas) |
+| Cancelación y timeout sin procesos huérfanos | **Validado en real** (verificado con `ps aux` dentro de WSL tras cancelar/timeout) |
+| UI end-to-end (analizar, progreso, pestaña BBOT, cancelar, exportar) | **Validado en real** (flujo completo `analyze()` con BBOT real, sin mocks) |
+
+Durante esta validación se encontraron y corrigieron varios problemas reales de compatibilidad con BBOT 3.x (formato de tablas en cajas Unicode en vez de texto tabulado, semántica aditiva de `flags:` en los presets, traducción de rutas Windows→WSL, y una asunción de codificación WSL que resultó incorrecta para el streaming de eventos). Ver el historial de commits de `feat/full-bbot-integration` para el detalle.
+
 ---
 
 ## 📤 Exportaciones generadas
