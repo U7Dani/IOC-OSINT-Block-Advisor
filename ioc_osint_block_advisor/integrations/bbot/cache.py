@@ -38,6 +38,8 @@ def cache_key(config: BBOTScanConfig, runtime_backend: str, bbot_version: str) -
         "preset_files": sorted(config.preset_files),
         "output_modules": sorted(config.output_modules),
         "flags": sorted(config.flags),
+        "require_flags": sorted(config.require_flags),
+        "exclude_flags": sorted(config.exclude_flags),
         "exclude_modules": sorted(config.exclude_modules),
     }
     blob = json.dumps(payload, sort_keys=True).encode("utf-8")

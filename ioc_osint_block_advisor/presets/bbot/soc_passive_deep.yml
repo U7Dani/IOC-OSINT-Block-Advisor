@@ -7,22 +7,28 @@
 # transparency, passive DNS, historical/wayback, public code repositories,
 # cloud/ASN intelligence) while keeping the same hard guarantee: never
 # contacts the target directly.
+#
+# Like soc_passive.yml, this file intentionally does NOT use a `flags:`
+# key to try to restrict to passive modules - `flags:` is additive in BBOT
+# (confirmed against a real install), so it would risk silently enabling
+# active-but-"safe"-tagged modules. The passive-only guarantee is enforced
+# in code via `-rf passive` (modules/osint_bbot.py).
 
 description: "SOC Passive Deep - fuentes pasivas ampliadas (CT, passive DNS, histórico, repos públicos, cloud/ASN)"
 
-flags:
-  - passive
-  - safe
+include:
   - subdomain-enum
   - cloud-enum
 
 exclude_modules:
   - portscan
   - nuclei
-  - httpx
+  - http
   - gowitness
   - wafw00f
-  - ffuf
+  - webbrute
+  - webbrute_shortnames
+  - lightfuzz
   - dnsbrute
   - dnsbrute_mutations
 

@@ -14,10 +14,13 @@ from integrations.bbot.models import (
 from modules.classifier import ClassifiedIOC
 from modules.osint_bbot import (
     BBOTEnrichmentOptions,
+    _build_scan_config,
     bbot_applicable,
     bbot_target_for,
     collect_bbot_many,
 )
+from integrations.bbot.models import PROFILE_SOC_PASSIVE_DEEP
+from integrations.bbot.settings import BBOTSettings
 
 
 def _ioc(ioc_type, normalized, domain="", root_domain="", subdomain=""):
@@ -151,3 +154,36 @@ def test_hash_items_never_trigger_a_scan():
     with patch("modules.osint_bbot.run_scan") as mock_run:
         collect_bbot_many([item], options)
     mock_run.assert_not_called()
+
+
+def test_soc_passive_profile_forces_require_flags_passive():
+    """Regression test: BBOT preset `flags:` is additive, not restrictive
+    (confirmed against a real BBOT 3.0.0 install - see NOTE in
+    presets/bbot/soc_passive.yml), so the passive-only guarantee for this
+    profile MUST come from `-rf passive` set here in code, not merely from
+    preset file content."""
+    config = _build_scan_config("example.com", BBOTEnrichmentOptions(enabled=True, profile=PROFILE_SOC_PASSIVE), BBOTSettings())
+    assert config.require_flags == ["passive"]
+
+
+def test_soc_passive_deep_profile_forces_require_flags_passive():
+    config = _build_scan_config("example.com", BBOTEnrichmentOptions(enabled=True, profile=PROFILE_SOC_PASSIVE_DEEP), BBOTSettings())
+    assert config.require_flags == ["passive"]
+
+
+def test_authorized_active_profile_excludes_loud_and_invasive():
+    config = _build_scan_config(
+        "example.com", BBOTEnrichmentOptions(enabled=True, profile=PROFILE_AUTHORIZED_ACTIVE, authorized=True), BBOTSettings()
+    )
+    assert config.require_flags == []
+    assert set(config.exclude_flags) == {"loud", "invasive"}
+
+
+def test_full_bbot_profile_has_no_forced_flag_restrictions():
+    from integrations.bbot.models import PROFILE_FULL_BBOT
+
+    config = _build_scan_config(
+        "example.com", BBOTEnrichmentOptions(enabled=True, profile=PROFILE_FULL_BBOT, authorized=True), BBOTSettings()
+    )
+    assert config.require_flags == []
+    assert config.exclude_flags == []

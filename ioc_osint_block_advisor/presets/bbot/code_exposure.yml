@@ -1,21 +1,25 @@
 # IOC OSINT Block Advisor - BBOT preset: Code Exposure
 #
 # IOC OSINT Block Advisor configuration artifact (MIT). See NOTICE_BBOT.md.
-# Passive search of public code repositories / secrets exposure related to
-# the target's domain. Read-only against third-party code hosting APIs.
+# Search of public code repositories / secrets exposure related to the
+# target's domain. Read-only against third-party code hosting APIs.
+#
+# NOTE: this preset's no-active-contact behavior is NOT code-enforced (no
+# `-rf passive`) - it only relies on the exclude_modules list below. For a
+# code-enforced guarantee, use the "SOC Passive" / "SOC Passive Deep"
+# profile instead. This file is an example/reference preset selectable via
+# Full BBOT / custom presets.
 
-description: "Exposición de código - repositorios públicos y posibles secretos expuestos (pasivo)"
+description: "Exposición de código - repositorios públicos y posibles secretos expuestos"
 
-flags:
-  - passive
-  - safe
+include:
+  - code-enum
 
 exclude_modules:
   - portscan
   - nuclei
-  - httpx
+  - http
   - gowitness
-  - ffuf
 
 output_modules:
   - json

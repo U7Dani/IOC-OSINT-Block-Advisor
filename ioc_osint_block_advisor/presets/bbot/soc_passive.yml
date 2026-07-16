@@ -11,22 +11,31 @@
 #     brute force, no nuclei, no screenshots, no web fuzzing)
 #   - no loud or invasive modules
 #
+# IMPORTANT (found during manual validation against a real BBOT 3.0.0
+# install): a preset's own `flags:` key is ADDITIVE ("enable every module
+# with this flag" - confirmed both in BBOT's own bundled presets and by
+# testing), NOT a restrictive filter. Since many modules are tagged both
+# "active" AND "safe" (e.g. http, sslcert, wafw00f), listing `safe` here
+# would silently enable active modules - the opposite of this preset's
+# purpose. The actual passive-only guarantee is therefore enforced in code
+# (modules/osint_bbot.py appends `-rf passive`, BBOT's own documented
+# mechanism for "only enable modules with this flag" - see
+# `bbot --help`'s EXAMPLES section), not by a `flags:` key in this file.
+#
 # Intended for: unauthorized/third-party domains, phishing infrastructure
 # triage, first-pass OSINT enrichment. This is the application default.
 
 description: "SOC Passive - enriquecimiento pasivo por defecto (sin contacto directo con el objetivo)"
 
-flags:
-  - passive
-  - safe
-
 exclude_modules:
   - portscan
   - nuclei
-  - httpx
+  - http
   - gowitness
   - wafw00f
-  - ffuf
+  - webbrute
+  - webbrute_shortnames
+  - lightfuzz
   - dnsbrute
   - dnsbrute_mutations
 

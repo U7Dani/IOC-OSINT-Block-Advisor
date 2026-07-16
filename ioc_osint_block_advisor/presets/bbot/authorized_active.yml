@@ -4,28 +4,33 @@
 #
 # WARNING: this preset makes DIRECT connections to the target (DNS
 # resolution beyond simple lookups, TLS/HTTP requests, port/service
-# fingerprinting, screenshots, subdomain takeover checks, and a curated set
-# of Nuclei templates). The application requires an explicit analyst
-# authorization confirmation before this preset can run (see
-# integrations/bbot and the "Enriquecimiento BBOT" UI panel) - do not
-# remove that confirmation gate when using this preset.
+# fingerprinting, screenshots, subdomain takeover checks). The application
+# requires an explicit analyst authorization confirmation before this
+# preset can run (see integrations/bbot and the "Enriquecimiento BBOT" UI
+# panel) - do not remove that confirmation gate when using this preset.
+#
+# "Controlled" active (per the app's security profile table) means loud
+# and invasive modules are excluded here even though the "active" flag
+# would otherwise enable them; this is enforced in code
+# (modules/osint_bbot.py appends `-ef loud -ef invasive` for this
+# profile), not just by this file. Nuclei is intentionally not included:
+# use "Full BBOT" with explicit module selection if you need it.
 #
 # Only use against infrastructure you are authorized to test.
 
-description: "Activo autorizado - conexión directa al objetivo (DNS activo, HTTP, fingerprinting, puertos, takeover, Nuclei seleccionado)"
+description: "Activo autorizado - conexión directa al objetivo (DNS activo, HTTP, fingerprinting, puertos, takeover)"
 
 flags:
   - active
   - safe
   - subdomain-enum
-  - web-basic
+  - web
 
 modules:
-  - httpx
+  - http
   - wafw00f
 
 exclude_modules:
-  - ffuf
   - dnsbrute_mutations
 
 output_modules:

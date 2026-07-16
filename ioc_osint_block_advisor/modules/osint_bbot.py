@@ -90,6 +90,17 @@ def bbot_target_for(item, include_full_url: bool = False) -> str | None:
     return None
 
 
+# Profiles that must NEVER be able to run an active module, enforced here
+# at the code layer (not just via preset YAML content, which could drift
+# or be misconfigured). BBOT's own documented mechanism for this is
+# `-rf passive` ("require flags"), which restricts the *final* module
+# selection regardless of what a preset/-f/-m otherwise enabled - see
+# `bbot --help`'s own EXAMPLES section ("Subdomains (passive only): bbot
+# -t evilcorp.com -p subdomain-enum -rf passive"), confirmed during manual
+# validation against a real BBOT 3.0.0 install.
+_PASSIVE_ONLY_PROFILES = (PROFILE_SOC_PASSIVE, PROFILE_SOC_PASSIVE_DEEP)
+
+
 def _build_scan_config(target: str, options: BBOTEnrichmentOptions, settings: BBOTSettings) -> BBOTScanConfig:
     preset_files: list[str] = []
     presets: list[str] = []
@@ -100,6 +111,14 @@ def _build_scan_config(target: str, options: BBOTEnrichmentOptions, settings: BB
         if preset_path and preset_path.exists():
             preset_files.append(str(preset_path))
 
+    require_flags = ["passive"] if options.profile in _PASSIVE_ONLY_PROFILES else []
+    # "Authorized Active" is documented as *controlled* active (see the
+    # security profile table in README.md): loud/invasive modules are
+    # excluded here even if a preset's own `flags:` would otherwise enable
+    # them. Full BBOT is the only profile that can run loud/invasive
+    # modules, and only after its own separate confirmation.
+    exclude_flags = ["loud", "invasive"] if options.profile == PROFILE_AUTHORIZED_ACTIVE else []
+
     return BBOTScanConfig(
         target=target,
         profile=options.profile,
@@ -107,6 +126,8 @@ def _build_scan_config(target: str, options: BBOTEnrichmentOptions, settings: BB
         presets=presets,
         preset_files=preset_files,
         output_modules=list(options.output_modules),
+        require_flags=require_flags,
+        exclude_flags=exclude_flags,
         timeout_seconds=options.timeout_seconds or settings.timeout_seconds,
         max_events=options.max_events or settings.max_events,
         authorized=options.authorized,

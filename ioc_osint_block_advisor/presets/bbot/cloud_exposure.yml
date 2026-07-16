@@ -1,23 +1,27 @@
 # IOC OSINT Block Advisor - BBOT preset: Cloud Exposure
 #
 # IOC OSINT Block Advisor configuration artifact (MIT). See NOTICE_BBOT.md.
-# Passive discovery of cloud storage buckets / cloud assets associated
-# with the target domain (existence/enumeration only, no active probing
-# of bucket contents beyond what BBOT's passive modules do by default).
+# Discovery of cloud storage buckets / cloud assets associated with the
+# target domain.
+#
+# NOTE: BBOT's real bucket_* modules (bucket_amazon, bucket_google, ...)
+# are tagged "active" - checking whether a bucket exists means making an
+# HTTP request to the relevant cloud provider's storage endpoint. This is
+# NOT a passive-only preset despite the name; it is NOT wired to the
+# code-enforced "SOC Passive" gate. Treat it like "Authorized Active":
+# confirm authorization before use. This file is an example/reference
+# preset selectable via Full BBOT / custom presets.
 
-description: "Exposición cloud - buckets y activos cloud asociados al dominio (pasivo)"
+description: "Exposición cloud - buckets y activos cloud asociados al dominio (activo: consulta endpoints de cloud storage)"
 
-flags:
-  - passive
-  - safe
+include:
   - cloud-enum
 
 exclude_modules:
   - portscan
   - nuclei
-  - httpx
+  - http
   - gowitness
-  - ffuf
 
 output_modules:
   - json
