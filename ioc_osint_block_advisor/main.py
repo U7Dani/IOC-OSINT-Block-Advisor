@@ -12,8 +12,43 @@ from modules.decision_engine import decide_many
 from modules.exporter import export_results
 from modules.extractor import extract_iocs
 from modules.fang import defang, refang
+from modules.osint_bbot import BBOTEnrichmentOptions, collect_bbot_many
 from modules.osint_runner import collect as collect_osint
 from modules.utils import load_allowlist
+
+from integrations.bbot.health import run_health_check
+from integrations.bbot.models import (
+    PROFILE_AUTHORIZED_ACTIVE,
+    PROFILE_FULL_BBOT,
+    PROFILE_SOC_PASSIVE,
+    PROFILE_SOC_PASSIVE_DEEP,
+    PROFILES_REQUIRING_AUTHORIZATION,
+)
+from integrations.bbot.orchestrator import get_capabilities, invalidate_capabilities_cache
+from integrations.bbot.settings import load_settings as load_bbot_settings
+
+BBOT_PROFILE_LABELS = {
+    PROFILE_SOC_PASSIVE: "SOC Passive",
+    PROFILE_SOC_PASSIVE_DEEP: "SOC Passive Deep",
+    PROFILE_AUTHORIZED_ACTIVE: "Authorized Active",
+    PROFILE_FULL_BBOT: "Full BBOT",
+}
+BBOT_PROFILE_BY_LABEL = {v: k for k, v in BBOT_PROFILE_LABELS.items()}
+
+
+def _module_tag(module) -> str:
+    tags = []
+    if module.active:
+        tags.append("active")
+    if module.loud:
+        tags.append("loud")
+    if module.invasive:
+        tags.append("invasive")
+    if module.auth_required:
+        tags.append("requiere API key")
+    if not module.available:
+        tags.append(module.unavailable_reason or "no disponible")
+    return f"  [{', '.join(tags)}]" if tags else ""
 
 
 BLOCKING_DECISIONS = {"BLOCK_DOMAIN", "BLOCK_URL_EXACT", "BLOCK_SENDER_EXACT", "BLOCK_HASH"}
@@ -129,6 +164,8 @@ class App(tk.Tk):
         self.observed_selected_value: str | None = None
         self.observed_rows: list[tuple[str, str]] = []
         self.worker_queue: queue.Queue = queue.Queue()
+        self._bbot_cancel_event: threading.Event = threading.Event()
+        self._bbot_running = False
         self._build_ui()
 
     def _set_initial_geometry(self) -> None:
@@ -766,6 +803,7 @@ class App(tk.Tk):
         self._build_summary_tab()
         self._build_evidence_tab()
         self._build_osint_tab()
+        self._build_bbot_tab()
         self._build_ticket_tab()
 
     def _build_inspector_fields(self, parent) -> None:
@@ -843,6 +881,29 @@ class App(tk.Tk):
         self.osint_text.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
         tab.rowconfigure(3, weight=1)
 
+    def _build_bbot_tab(self) -> None:
+        tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
+        self.detail_notebook.add(tab, text="🛰 BBOT")
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(3, weight=1)
+        tab.rowconfigure(5, weight=1)
+
+        ttk.Label(tab, text="Estado / avisos:", style="Field.TLabel").grid(row=0, column=0, sticky="w")
+        self.bbot_detail_status_var = tk.StringVar(value="BBOT no ejecutado para este IOC.")
+        ttk.Label(tab, textvariable=self.bbot_detail_status_var, style="Value.TLabel", wraplength=900).grid(
+            row=1, column=0, sticky="ew", pady=(2, 10)
+        )
+
+        ttk.Label(tab, text="Relaciones (padre → hijo · tipo · directa)", style="Field.TLabel").grid(row=2, column=0, sticky="w")
+        self.bbot_relationships_text = self._make_readonly_text(tab, height=8)
+        self.bbot_relationships_text.grid(row=3, column=0, sticky="nsew", pady=(2, 10))
+
+        ttk.Label(tab, text="Hallazgos técnicos (grupo · etiqueta · módulo · impacto en score)", style="Field.TLabel").grid(
+            row=4, column=0, sticky="w"
+        )
+        self.bbot_findings_text = self._make_readonly_text(tab, height=8)
+        self.bbot_findings_text.grid(row=5, column=0, sticky="nsew", pady=(2, 0))
+
     def _build_ticket_tab(self) -> None:
         tab = ttk.Frame(self.detail_notebook, style="CardBody.TFrame", padding=(12, 12))
         self.detail_notebook.add(tab, text="🎫 Ticket")
@@ -918,20 +979,206 @@ class App(tk.Tk):
         self.osint_url_check.pack(side="left", padx=(16, 6))
         ttk.Label(options_row, text="(puede exponer IOCs a terceros)", style="SmallMuted.TLabel").pack(side="left")
 
+        self._build_bbot_row(frame)
+
+    def _build_bbot_row(self, parent) -> None:
+        row = ttk.Frame(parent, style="Toolbar.TFrame")
+        row.pack(side="top", fill="x", pady=(6, 0))
+
+        self.use_bbot = tk.BooleanVar(value=False)
+        self.bbot_profile = tk.StringVar(value=BBOT_PROFILE_LABELS[PROFILE_SOC_PASSIVE])
+        self.bbot_include_full_url = tk.BooleanVar(value=False)
+        self.bbot_use_cache = tk.BooleanVar(value=True)
+        self.bbot_status_var = tk.StringVar(value="Enriquecimiento BBOT: inactivo")
+
+        ttk.Checkbutton(row, text="Activar BBOT", variable=self.use_bbot).pack(side="left")
+
+        ttk.Label(row, text="Perfil:", style="Field.TLabel").pack(side="left", padx=(14, 4))
+        self.bbot_profile_combo = ttk.Combobox(
+            row,
+            textvariable=self.bbot_profile,
+            values=list(BBOT_PROFILE_LABELS.values()),
+            state="readonly",
+            width=18,
+        )
+        self.bbot_profile_combo.pack(side="left")
+
+        ttk.Checkbutton(row, text="Incluir URL completa", variable=self.bbot_include_full_url).pack(side="left", padx=(14, 0))
+        ttk.Checkbutton(row, text="Usar caché", variable=self.bbot_use_cache).pack(side="left", padx=(10, 0))
+
+        self.bbot_check_button = ttk.Button(row, text="🩺 Comprobar instalación", command=self.check_bbot_installation, style="Secondary.TButton")
+        self.bbot_refresh_button = ttk.Button(row, text="🔄 Actualizar capacidades", command=self.refresh_bbot_capabilities, style="Secondary.TButton")
+        self.bbot_modules_button = ttk.Button(row, text="🧩 Seleccionar módulos", command=self.open_bbot_module_selector, style="Secondary.TButton")
+        self.bbot_cancel_button = ttk.Button(row, text="✖ Cancelar BBOT", command=self.cancel_bbot, style="Danger.TButton", state="disabled")
+        for button in (self.bbot_check_button, self.bbot_refresh_button, self.bbot_modules_button, self.bbot_cancel_button):
+            button.pack(side="left", padx=(10, 0))
+
+        ttk.Label(row, textvariable=self.bbot_status_var, style="SmallMuted.TLabel").pack(side="left", padx=(14, 0))
+
+        self._bbot_selected_modules: list[str] = []
+        self._bbot_selected_presets: list[str] = []
+        self._bbot_selected_output_modules: list[str] = []
+
+    def check_bbot_installation(self) -> None:
+        self.bbot_status_var.set("Comprobando instalación de BBOT...")
+
+        def worker() -> None:
+            settings = load_bbot_settings()
+            report = run_health_check(settings)
+            self.worker_queue.put(("bbot_health", report))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(200, self._poll_worker)
+
+    def refresh_bbot_capabilities(self) -> None:
+        invalidate_capabilities_cache()
+        self.check_bbot_installation()
+
+    def cancel_bbot(self) -> None:
+        if self._bbot_running:
+            self._bbot_cancel_event.set()
+            self.bbot_status_var.set("Cancelando BBOT...")
+
+    def open_bbot_module_selector(self) -> None:
+        """Full BBOT selector: every module/preset actually discovered on this
+        BBOT install, not a hardcoded list (FASE 3/14)."""
+        settings = load_bbot_settings()
+        capabilities = get_capabilities(settings)
+        dialog = tk.Toplevel(self)
+        dialog.title("Módulos y presets de BBOT (Full BBOT)")
+        dialog.configure(bg=COLORS["panel"])
+        dialog.geometry("620x520")
+
+        if not capabilities.loaded:
+            ttk.Label(
+                dialog,
+                text="No se pudieron cargar capacidades de BBOT (no instalado, o falló la detección).\n"
+                "Usa 'Comprobar instalación' para ver el motivo exacto.",
+                style="Value.TLabel",
+                wraplength=560,
+            ).pack(padx=16, pady=16)
+            ttk.Button(dialog, text="Cerrar", command=dialog.destroy).pack(pady=(0, 12))
+            return
+
+        notebook = ttk.Notebook(dialog)
+        notebook.pack(fill="both", expand=True, padx=12, pady=12)
+
+        mod_frame, mod_list = self._build_bbot_checklist_tab(
+            notebook, "Módulos", capabilities.modules.values(), self._bbot_selected_modules, _module_tag
+        )
+        preset_frame, preset_list = self._build_bbot_checklist_tab(
+            notebook, "Presets", capabilities.presets.values(), self._bbot_selected_presets, lambda p: ""
+        )
+        out_frame, out_list = self._build_bbot_checklist_tab(
+            notebook, "Módulos de salida", capabilities.output_modules.values(), self._bbot_selected_output_modules, lambda o: ""
+        )
+
+        def confirm() -> None:
+            self._bbot_selected_modules = [name for name, var in mod_list if var.get()]
+            self._bbot_selected_presets = [name for name, var in preset_list if var.get()]
+            self._bbot_selected_output_modules = [name for name, var in out_list if var.get()]
+            has_risky = any(
+                capabilities.modules[name].active or capabilities.modules[name].loud or capabilities.modules[name].invasive
+                for name in self._bbot_selected_modules
+                if name in capabilities.modules
+            )
+            if has_risky and not messagebox.askyesno(
+                "Módulos activos/loud/invasive seleccionados",
+                "Has seleccionado uno o más módulos activos, loud o invasive. "
+                "Estos módulos contactan directamente el objetivo.\n\n"
+                "¿Confirmas que dispones de autorización expresa?",
+                icon="warning",
+            ):
+                return
+            dialog.destroy()
+
+        button_row = ttk.Frame(dialog, style="Toolbar.TFrame")
+        button_row.pack(fill="x", padx=12, pady=(0, 12))
+        ttk.Button(button_row, text="Cancelar", command=dialog.destroy).pack(side="right", padx=(8, 0))
+        ttk.Button(button_row, text="Confirmar selección", command=confirm, style="Primary.TButton").pack(side="right")
+
+    def _build_bbot_checklist_tab(self, notebook, title, capability_values, preselected, tag_fn):
+        tab = ttk.Frame(notebook, style="CardBody.TFrame", padding=(8, 8))
+        notebook.add(tab, text=title)
+        canvas = tk.Canvas(tab, bg="#0a1424", highlightthickness=0)
+        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas, style="CardBody.TFrame")
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        vars_list = []
+        preselected_set = set(preselected)
+        for cap in sorted(capability_values, key=lambda c: c.name):
+            var = tk.BooleanVar(value=cap.name in preselected_set)
+            label = cap.name + tag_fn(cap)
+            ttk.Checkbutton(inner, text=label, variable=var).pack(anchor="w", pady=1)
+            vars_list.append((cap.name, var))
+        if not vars_list:
+            ttk.Label(inner, text="(ninguno detectado)", style="SmallMuted.TLabel").pack(anchor="w", padx=4, pady=4)
+        return tab, vars_list
+
+    def _confirm_bbot_authorization(self, profile: str) -> bool:
+        if profile not in PROFILES_REQUIRING_AUTHORIZATION:
+            return True
+        return messagebox.askyesno(
+            "Confirmación de autorización requerida",
+            "Este análisis realizará conexiones directas contra el objetivo "
+            "(DNS activo, HTTP/TLS, huella de servicios y/o módulos activos/loud/invasive).\n\n"
+            "Confirma que dispones de autorización expresa para analizar este objetivo.",
+            icon="warning",
+        )
+
     def analyze(self) -> None:
         context = self.context_text.get("1.0", "end").strip()
         iocs = self.iocs_text.get("1.0", "end").strip()
         if not context and not iocs:
             messagebox.showinfo("Sin datos", "Pega contexto o IOCs observados antes de analizar.")
             return
+
+        bbot_options = None
+        if self.use_bbot.get():
+            profile = BBOT_PROFILE_BY_LABEL.get(self.bbot_profile.get(), PROFILE_SOC_PASSIVE)
+            if not self._confirm_bbot_authorization(profile):
+                self.status.set("Análisis cancelado: falta confirmación de autorización BBOT.")
+                return
+            bbot_options = BBOTEnrichmentOptions(
+                enabled=True,
+                profile=profile,
+                include_full_url=self.bbot_include_full_url.get(),
+                use_cache=self.bbot_use_cache.get(),
+                authorized=profile in PROFILES_REQUIRING_AUTHORIZATION,
+                modules=list(self._bbot_selected_modules) if profile == PROFILE_FULL_BBOT else [],
+                presets=list(self._bbot_selected_presets) if profile == PROFILE_FULL_BBOT else [],
+                output_modules=list(self._bbot_selected_output_modules) if profile == PROFILE_FULL_BBOT else [],
+            )
+
         self._refresh_observed()
         self.status.set("Analizando...")
         self._set_analysis_state("disabled")
-        thread = threading.Thread(target=self._analyze_worker, args=(context, iocs, self.use_osint.get(), self.osint_url_lookups.get()), daemon=True)
+        self._bbot_cancel_event = threading.Event()
+        if bbot_options is not None:
+            self._bbot_running = True
+            self.bbot_cancel_button.configure(state="normal")
+            self.bbot_status_var.set("Enriquecimiento BBOT: en curso...")
+        thread = threading.Thread(
+            target=self._analyze_worker,
+            args=(context, iocs, self.use_osint.get(), self.osint_url_lookups.get(), bbot_options),
+            daemon=True,
+        )
         thread.start()
         self.after(200, self._poll_worker)
 
-    def _analyze_worker(self, context: str, iocs: str, use_osint: bool, include_url_lookups: bool = False) -> None:
+    def _analyze_worker(
+        self,
+        context: str,
+        iocs: str,
+        use_osint: bool,
+        include_url_lookups: bool = False,
+        bbot_options: BBOTEnrichmentOptions | None = None,
+    ) -> None:
         try:
             extracted = extract_iocs(context, iocs)
             allowlist = load_allowlist()
@@ -946,13 +1193,34 @@ class App(tk.Tk):
                         classified.append(classify_ioc(extracted_item, context, allowlist))
                     except Exception as exc:
                         fallback_items.append(self._fallback_review_item(extracted_item, exc))
+
+            osint_ok: list = []
             for item in classified:
                 try:
                     if use_osint:
                         collect_osint(item, include_url_lookups=include_url_lookups)
+                    osint_ok.append(item)
+                except Exception as exc:
+                    decided.append(self._fallback_review_item(item, exc))
+
+            if bbot_options is not None and bbot_options.enabled and osint_ok:
+                try:
+                    collect_bbot_many(
+                        osint_ok,
+                        bbot_options,
+                        cancel_event=self._bbot_cancel_event,
+                        on_status=lambda status: self.worker_queue.put(("bbot_status", status)),
+                    )
+                except Exception:
+                    for item in osint_ok:
+                        item.bbot_warnings.append("Fallo inesperado en la integración BBOT durante el análisis.")
+
+            for item in osint_ok:
+                try:
                     decided.extend(decide_many([item]))
                 except Exception as exc:
                     decided.append(self._fallback_review_item(item, exc))
+
             decided.extend(fallback_items)
             self.worker_queue.put(("ok", decided))
         except Exception as exc:
@@ -995,9 +1263,22 @@ class App(tk.Tk):
         except queue.Empty:
             self.after(200, self._poll_worker)
             return
+
+        if status == "bbot_status":
+            self.bbot_status_var.set(f"Enriquecimiento BBOT: {payload}")
+            self.after(200, self._poll_worker)
+            return
+        if status == "bbot_health":
+            self._show_bbot_health_report(payload)
+            self.after(200, self._poll_worker)
+            return
+
+        self._bbot_running = False
+        self.bbot_cancel_button.configure(state="disabled")
         self._set_analysis_state("normal")
         if status == "error":
             self.status.set("Error durante el análisis.")
+            self.bbot_status_var.set("Enriquecimiento BBOT: inactivo")
             messagebox.showerror("Error", str(payload))
             return
         self.results = payload
@@ -1006,6 +1287,31 @@ class App(tk.Tk):
         self._refresh_observed()
         self._set_input_panel_visible(False)
         self.status.set(f"Análisis completado: {len(self.results)} IOC(s)")
+        self.bbot_status_var.set("Enriquecimiento BBOT: inactivo")
+
+    def _show_bbot_health_report(self, report) -> None:
+        lines = [
+            f"Runtime disponible: {'sí' if report.runtime.available else 'no'}",
+        ]
+        if report.runtime.available:
+            lines.append(f"Backend: {report.runtime.backend}  |  Versión: {report.runtime.version}")
+        else:
+            lines.append(f"Motivo: {report.runtime.reason}")
+        lines.append(f"Capacidades cargadas: {'sí' if report.capabilities.loaded else 'no'}")
+        if report.capabilities.loaded:
+            lines.append(
+                f"Módulos: {len(report.capabilities.modules)}  |  Presets: {len(report.capabilities.presets)}  |  "
+                f"Módulos de salida: {len(report.capabilities.output_modules)}"
+            )
+        lines.append(f"Directorio de trabajo escribible: {'sí' if report.workdir_writable else 'no'} ({report.workdir_path})")
+        lines.append(f"WSL disponible en el sistema: {'sí' if report.wsl_available else 'no'}")
+        lines.append(f"Docker disponible en el sistema: {'sí' if report.docker_available else 'no'}")
+        if report.problems:
+            lines.append("")
+            lines.append("Problemas detectados:")
+            lines.extend(f"- {p}" for p in report.problems)
+        self.bbot_status_var.set("Enriquecimiento BBOT: " + ("disponible" if report.ok else "no disponible"))
+        messagebox.showinfo("Estado de BBOT", "\n".join(lines))
 
     def _render_results(self) -> None:
         self.table.delete(*self.table.get_children())
@@ -1099,6 +1405,7 @@ class App(tk.Tk):
         self._set_text_widget(self.reason_text, "\n\n".join(reason_parts) or (self._field(item, "reason") or "-"))
 
         self._set_text_widget(self.osint_text, self._format_osint_results(item))
+        self._populate_bbot_tab(item)
         self._set_text_widget(self.ticket_text, "\n".join(self._build_ticket_lines(item)))
 
         self._update_status_badge(item)
@@ -1107,6 +1414,34 @@ class App(tk.Tk):
         self.detail_copy_ioc_button.configure(state="normal")
         self.copy_block_button.configure(state="normal" if blockable_value else "disabled")
         self.copy_ticket_button.configure(state="normal")
+
+    def _populate_bbot_tab(self, item) -> None:
+        scan_id = self._field(item, "bbot_scan_id")
+        status = self._field(item, "bbot_status")
+        warnings = self._field(item, "bbot_warnings", default=[]) or []
+        if not scan_id and not status and not warnings:
+            self.bbot_detail_status_var.set("BBOT no ejecutado para este IOC.")
+        else:
+            parts = [f"scan_id={scan_id or '-'}", f"status={status or '-'}"]
+            if warnings:
+                parts.append("Avisos: " + "; ".join(str(w) for w in warnings))
+            self.bbot_detail_status_var.set(" | ".join(parts))
+
+        relationships = self._field(item, "bbot_relationships", default=[]) or []
+        rel_lines = [
+            f"{r.get('source_id', '?')} → {r.get('target_id', '?')}  ·  {r.get('relation_type', 'discovered_from')}"
+            f"  ·  {'directa' if r.get('direct') else 'indirecta'}  ·  módulo={r.get('source_module', '-')}"
+            for r in relationships
+        ]
+        self._set_text_widget(self.bbot_relationships_text, "\n".join(rel_lines) or "Sin relaciones BBOT registradas.")
+
+        findings = self._field(item, "technical_findings", default=[]) or []
+        finding_lines = [
+            f"[{f.get('group', '?')}] {f.get('label', '?')}  ·  módulo={f.get('module', '-')}  ·  "
+            f"valor={f.get('value', '-')}  ·  {f.get('explanation', '')}"
+            for f in findings
+        ]
+        self._set_text_widget(self.bbot_findings_text, "\n".join(finding_lines) or "Sin hallazgos técnicos BBOT registrados.")
 
     def _format_osint_results(self, item) -> str:
         results = self._field(item, "osint_results", default=[]) or []
@@ -1306,6 +1641,9 @@ class App(tk.Tk):
         self._set_text_widget(self.positive_evidence_text, "")
         self._set_text_widget(self.negative_evidence_text, "")
         self._set_text_widget(self.osint_text, "")
+        self._set_text_widget(self.bbot_relationships_text, "")
+        self._set_text_widget(self.bbot_findings_text, "")
+        self.bbot_detail_status_var.set("BBOT no ejecutado para este IOC.")
         self._set_text_widget(self.ticket_text, "")
         self.status_badge_var.set("Selecciona un IOC")
         self.status_badge.configure(style="BadgeObserved.TLabel")
