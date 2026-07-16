@@ -135,6 +135,8 @@ def build_bbot_argv(
     output_modules: list[str] | None = None,
     exclude_modules: list[str] | None = None,
     flags: list[str] | None = None,
+    require_flags: list[str] | None = None,
+    exclude_flags: list[str] | None = None,
     workdir: str | None = None,
     json_output: bool = True,
     capabilities: BBOTCapabilities | None = None,
@@ -167,6 +169,20 @@ def build_bbot_argv(
     for flag in flags or []:
         argv += ["-f", validate_flag(flag)]
 
+    # -rf/--require-flags restricts the FINAL module selection to only
+    # modules carrying these flags, regardless of how they were otherwise
+    # enabled (preset, -f, -m) - this is BBOT's own documented mechanism
+    # for forcing a passive-only scan (see `bbot --help` EXAMPLES: "bbot -t
+    # evilcorp.com -p subdomain-enum -rf passive"). Used as a hard,
+    # code-level safety net for the SOC Passive / SOC Passive Deep
+    # profiles (see modules/osint_bbot.py) - not just relied on via preset
+    # YAML content, which could drift or be misconfigured.
+    for flag in require_flags or []:
+        argv += ["-rf", validate_flag(flag)]
+
+    for flag in exclude_flags or []:
+        argv += ["-ef", validate_flag(flag)]
+
     for out_mod in output_modules or []:
         argv += ["-om", validate_output_module_name(out_mod, capabilities)]
 
@@ -196,6 +212,8 @@ def build_capability_query_argv(executable: str, query: str) -> list[str]:
         "list_modules": ["-l"],
         "list_presets": ["-lp"],
         "list_output_modules": ["-lo"],
+        "list_flags": ["-lf"],
+        "list_module_options": ["-lmo"],
     }
     if query not in allowed:
         raise BBOTValidationError(f"Consulta de capacidades desconocida: '{query}'.")

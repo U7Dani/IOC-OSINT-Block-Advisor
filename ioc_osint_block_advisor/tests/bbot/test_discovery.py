@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from pathlib import Path
 
 from integrations.bbot.discovery import (
     _CapturedRun,
@@ -6,49 +6,72 @@ from integrations.bbot.discovery import (
     backend_prefix,
     detect_runtime,
     discover_capabilities,
+    parse_flag_listing,
     parse_module_listing,
+    parse_module_option_listing,
     parse_output_module_listing,
     parse_preset_listing,
 )
 from integrations.bbot.models import BBOTRuntimeStatus
 from integrations.bbot.settings import BBOTSettings
 
-# Representative sample text loosely modeled on BBOT's published CLI output
-# format. Not captured from a real installation (none is available in this
-# environment) - used only to exercise the tolerant table parser.
-SAMPLE_MODULE_LISTING = """
-Module          Type      Needs API Key   Flags                        Description
-------          ----      -------------   -----                        -----------
-dnsresolve      internal  No              passive,safe                 Resolves DNS names
-httpx           scan      No              active,safe,web-basic        Visits URLs and gathers info
-portscan        scan      No              active,aggressive            Scans for open ports
-shodan_dns      scan      Yes             passive,safe,subdomain-enum  Queries Shodan for subdomains
-"""
-
-SAMPLE_PRESET_LISTING = """
-Preset            Category        # Modules   Description
-------            --------        ---------   -----------
-subdomain-enum    scanning        25          Enumerate subdomains
-cloud-enum        scanning        12          Enumerate cloud assets
-"""
-
-SAMPLE_OUTPUT_MODULE_LISTING = """
-Output Module     Description
--------------     -----------
-json              Output events as JSON
-csv               Output events as CSV
-"""
+# Fixtures below are sanitized, real `bbot --version`/`-l`/`-lp`/`-lo`/`-lf`/
+# `-lmo` output captured from an actual BBOT 3.0.0 install (pipx, inside a
+# WSL2 Ubuntu-24.04 distro) during manual validation - see
+# tests/bbot/fixtures/ and the validation report for details. No personal
+# paths, usernames, or secrets are present (this is BBOT's own static
+# module/preset catalog).
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-def test_parse_module_listing_extracts_flags_and_safety():
-    modules, warnings = parse_module_listing(SAMPLE_MODULE_LISTING)
+def _fixture(name: str) -> str:
+    return (FIXTURES_DIR / name).read_text(encoding="utf-8")
+
+
+REAL_MODULE_LISTING = _fixture("bbot_modules_real.txt")
+REAL_PRESET_LISTING = _fixture("bbot_presets_real.txt")
+REAL_OUTPUT_MODULE_LISTING = _fixture("bbot_outputs_real.txt")
+REAL_FLAG_LISTING = _fixture("bbot_flags_real.txt")
+REAL_MODULE_OPTION_LISTING = _fixture("bbot_module_options_real.txt")
+REAL_VERSION_OUTPUT = _fixture("bbot_version_real.txt")
+
+
+def test_parse_module_listing_against_real_bbot_output():
+    modules, warnings = parse_module_listing(REAL_MODULE_LISTING)
     assert not warnings
-    assert "dnsresolve" in modules
-    assert modules["dnsresolve"].passive is True
-    assert modules["dnsresolve"].active is False
+    # Known-real module names, sampled across the catalog (see FASE 4 of the
+    # validation brief): crt (passive, no key), portscan (active),
+    # virustotal/otx/urlscan (present, API key required).
+    for name in ("crt", "sslcert", "portscan", "http", "virustotal", "otx", "urlscan", "subdomaincenter"):
+        assert name in modules, f"expected real module {name!r} to be present"
+
+    assert modules["crt"].passive is True
+    assert modules["crt"].active is False
+    assert modules["crt"].auth_required is False
+
     assert modules["portscan"].active is True
-    assert modules["portscan"].invasive is True
-    assert modules["shodan_dns"].auth_required is True
+    assert modules["portscan"].passive is False
+
+    assert modules["virustotal"].auth_required is True
+    assert modules["otx"].auth_required is True
+
+    # dnsbrute is loud (brute force) - must not be misclassified as safe-only passive.
+    assert modules["dnsbrute"].active is True
+    assert modules["dnsbrute"].loud is True
+
+
+def test_parse_module_listing_description_does_not_leak_into_flags():
+    modules, _ = parse_module_listing(REAL_MODULE_LISTING)
+    crt = modules["crt"]
+    # Flags must come only from the "Flags" column, never from words that
+    # happen to appear in the free-text "Description" column.
+    assert crt.flags <= {
+        "affiliates", "aggressive", "safe", "passive", "active", "loud",
+        "invasive", "subdomain-enum", "cloud-enum", "email-enum", "web",
+        "web-heavy", "web-screenshots", "portscan", "service-enum",
+        "code-enum", "download", "iis-shortnames", "baddns",
+        "subdomain-hijack", "social-enum", "slow",
+    }
 
 
 def test_parse_module_listing_handles_empty_output():
@@ -57,18 +80,41 @@ def test_parse_module_listing_handles_empty_output():
     assert warnings
 
 
-def test_parse_preset_listing():
-    presets, warnings = parse_preset_listing(SAMPLE_PRESET_LISTING)
+def test_parse_preset_listing_against_real_bbot_output():
+    presets, warnings = parse_preset_listing(REAL_PRESET_LISTING)
     assert not warnings
-    assert "subdomain-enum" in presets
-    assert "cloud-enum" in presets
+    for name in ("kitchen-sink", "subdomain-enum", "cloud-enum", "email-enum", "fast"):
+        assert name in presets, f"expected real preset {name!r} to be present"
+    assert "everywhere" in presets["kitchen-sink"].description.lower()
 
 
-def test_parse_output_module_listing():
-    out_modules, warnings = parse_output_module_listing(SAMPLE_OUTPUT_MODULE_LISTING)
+def test_parse_output_module_listing_against_real_bbot_output():
+    out_modules, warnings = parse_output_module_listing(REAL_OUTPUT_MODULE_LISTING)
     assert not warnings
-    assert "json" in out_modules
-    assert "csv" in out_modules
+    for name in ("json", "csv", "sqlite", "splunk", "elastic", "neo4j"):
+        assert name in out_modules, f"expected real output module {name!r} to be present"
+
+
+def test_parse_flag_listing_against_real_bbot_output():
+    flags, warnings = parse_flag_listing(REAL_FLAG_LISTING)
+    assert not warnings
+    for name in ("safe", "passive", "active", "loud", "invasive", "subdomain-enum"):
+        assert name in flags, f"expected real flag {name!r} to be present"
+    assert flags["passive"].module_count > 0
+    assert "crt" in flags["passive"].modules or "dnsdumpster" in flags["passive"].modules
+
+
+def test_parse_module_option_listing_against_real_bbot_output():
+    options, warnings = parse_module_option_listing(REAL_MODULE_OPTION_LISTING)
+    assert not warnings
+    assert any(name.startswith("modules.baddns.") for name in options)
+    sample = options.get("modules.baddns.min_confidence")
+    assert sample is not None
+    assert sample.default == "MEDIUM"
+
+
+def test_real_version_output_is_a_bare_version_string():
+    assert REAL_VERSION_OUTPUT.strip() == "3.0.0"
 
 
 def test_decode_output_handles_wsl_utf16le_quirk():
@@ -129,12 +175,12 @@ def test_detect_runtime_native_success(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/bbot")
 
     def fake_run_capture(argv, timeout=20):
-        return _CapturedRun(0, "BBOT 3.1.0\n", "")
+        return _CapturedRun(0, REAL_VERSION_OUTPUT, "")
 
     monkeypatch.setattr("integrations.bbot.discovery._run_capture", fake_run_capture)
     status = detect_runtime(settings)
     assert status.available is True
-    assert status.version == "3.1.0"
+    assert status.version == "3.0.0"
     assert status.backend == "native"
 
 
@@ -162,14 +208,16 @@ def test_discover_capabilities_returns_unavailable_when_runtime_missing():
     assert "no encontrado" in caps.warnings[0]
 
 
-def test_discover_capabilities_parses_all_three_listings(monkeypatch):
-    runtime = BBOTRuntimeStatus(available=True, backend="native", executable="bbot", version="3.1.0")
+def test_discover_capabilities_parses_all_real_listings(monkeypatch):
+    runtime = BBOTRuntimeStatus(available=True, backend="native", executable="bbot", version="3.0.0")
     settings = BBOTSettings(runtime="native")
 
     responses = {
-        ("bbot", "-l"): SAMPLE_MODULE_LISTING,
-        ("bbot", "-lp"): SAMPLE_PRESET_LISTING,
-        ("bbot", "-lo"): SAMPLE_OUTPUT_MODULE_LISTING,
+        ("bbot", "-l"): REAL_MODULE_LISTING,
+        ("bbot", "-lp"): REAL_PRESET_LISTING,
+        ("bbot", "-lo"): REAL_OUTPUT_MODULE_LISTING,
+        ("bbot", "-lf"): REAL_FLAG_LISTING,
+        ("bbot", "-lmo"): REAL_MODULE_OPTION_LISTING,
     }
 
     def fake_run_capture(argv, timeout=20):
@@ -178,6 +226,9 @@ def test_discover_capabilities_parses_all_three_listings(monkeypatch):
     monkeypatch.setattr("integrations.bbot.discovery._run_capture", fake_run_capture)
     caps = discover_capabilities(runtime, settings)
     assert caps.loaded is True
-    assert "dnsresolve" in caps.modules
-    assert "subdomain-enum" in caps.presets
+    assert "crt" in caps.modules
+    assert "kitchen-sink" in caps.presets
     assert "json" in caps.output_modules
+    assert "passive" in caps.flags
+    assert any(name.startswith("modules.") for name in caps.module_options)
+    assert not caps.warnings

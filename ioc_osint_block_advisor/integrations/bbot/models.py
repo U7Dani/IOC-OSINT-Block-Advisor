@@ -62,11 +62,29 @@ class BBOTOutputModuleCapability:
 
 
 @dataclass
+class BBOTFlagCapability:
+    name: str
+    description: str = ""
+    module_count: int = 0
+    modules: list[str] = field(default_factory=list)
+
+
+@dataclass
+class BBOTModuleOption:
+    name: str  # dotted config path, e.g. "modules.baddns.min_confidence"
+    type: str = ""
+    description: str = ""
+    default: str = ""
+
+
+@dataclass
 class BBOTCapabilities:
     version: str = ""
     modules: dict[str, BBOTModuleCapability] = field(default_factory=dict)
     presets: dict[str, BBOTPresetCapability] = field(default_factory=dict)
     output_modules: dict[str, BBOTOutputModuleCapability] = field(default_factory=dict)
+    flags: dict[str, BBOTFlagCapability] = field(default_factory=dict)
+    module_options: dict[str, BBOTModuleOption] = field(default_factory=dict)
     loaded: bool = False
     warnings: list[str] = field(default_factory=list)
     fetched_at: float | None = None
@@ -128,6 +146,8 @@ class BBOTScanConfig:
     preset_files: list[str] = field(default_factory=list)
     output_modules: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
+    require_flags: list[str] = field(default_factory=list)
+    exclude_flags: list[str] = field(default_factory=list)
     exclude_modules: list[str] = field(default_factory=list)
     timeout_seconds: int = 600
     max_events: int = 5000

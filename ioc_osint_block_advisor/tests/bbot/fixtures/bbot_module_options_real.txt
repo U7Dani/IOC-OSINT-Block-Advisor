@@ -1,0 +1,986 @@
+
+### MODULE OPTIONS ###
+
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| Config Option                            | Type                                     | Description                              | Default                                  |
++==========================================+==========================================+==========================================+==========================================+
+| modules.baddns.custom_nameservers        | list[str]                                | Force BadDNS to use a list of custom     | []                                       |
+|                                          |                                          | nameservers                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns.enabled_submodules        | list[str]                                | A list of submodules to enable. Empty    | []                                       |
+|                                          |                                          | list (default) enables CNAME, TXT and MX |                                          |
+|                                          |                                          | Only                                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns.min_confidence            | ConfidenceLiteral                        | Minimum confidence to emit               | MEDIUM                                   |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns.min_severity              | SeverityLiteral                          | Minimum severity to emit                 | LOW                                      |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns_direct.custom_nameservers | list                                     | Force BadDNS to use a list of custom     | []                                       |
+|                                          |                                          | nameservers                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns_direct.min_confidence     | ConfidenceLiteral                        | Minimum confidence to emit (UNKNOWN,     | MEDIUM                                   |
+|                                          |                                          | LOW, MEDIUM, HIGH, CONFIRMED)            |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns_direct.min_severity       | SeverityLiteral                          | Minimum severity to emit (INFO, LOW,     | LOW                                      |
+|                                          |                                          | MEDIUM, HIGH, CRITICAL)                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns_zone.custom_nameservers   | list                                     | Force BadDNS to use a list of custom     | []                                       |
+|                                          |                                          | nameservers                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns_zone.min_confidence       | ConfidenceLiteral                        | Minimum confidence to emit (UNKNOWN,     | MEDIUM                                   |
+|                                          |                                          | LOW, MEDIUM, HIGH, CONFIRMED)            |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.baddns_zone.min_severity         | SeverityLiteral                          | Minimum severity to emit (INFO, LOW,     | INFO                                     |
+|                                          |                                          | MEDIUM, HIGH, CRITICAL)                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.badsecrets.custom_secrets        | Optional[str]                            | Include custom secrets loaded from a     | None                                     |
+|                                          |                                          | local file                               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bucket_amazon.permutations       | bool                                     | Whether to try permutations              | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bucket_digitalocean.permutations | bool                                     | Whether to try permutations              | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bucket_firebase.permutations     | bool                                     | Whether to try permutations              | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bucket_google.permutations       | bool                                     | Whether to try permutations              | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bucket_hetzner.permutations      | bool                                     | Whether to try permutations              | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bucket_microsoft.permutations    | bool                                     | Whether to try permutations              | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnsbrute.max_depth               | int                                      | How many subdomains deep to brute force, | 5                                        |
+|                                          |                                          | i.e. 5.4.3.2.1.evilcorp.com              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnsbrute.recursive_mutations     | bool                                     | If True, brute-force hosts discovered by | False                                    |
+|                                          |                                          | dnsbrute_mutations. The default (False)  |                                          |
+|                                          |                                          | skips them because the static wordlist   |                                          |
+|                                          |                                          | heavily overlaps with the mutation       |                                          |
+|                                          |                                          | algorithm's own output.                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnsbrute.wordlist                | Union[str, list[str]]                    | Subdomain wordlist URL or file path.     | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | Accepts a list of URLs/paths to merge    | miessler/SecLists/master/Discovery/DNS/s |
+|                                          |                                          | multiple wordlists (duplicates are       | ubdomains-top1million-5000.txt           |
+|                                          |                                          | removed).                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnsbrute_mutations.max_mutations | int                                      | Maximum number of target-specific        | 100                                      |
+|                                          |                                          | mutations to try per subdomain           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnscommonsrv.max_depth           | int                                      | The maximum subdomain depth to brute-    | 2                                        |
+|                                          |                                          | force SRV records                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnscommonsrv.recursive_mutations | bool                                     | If True, brute-force SRV records on      | False                                    |
+|                                          |                                          | hosts discovered by dnsbrute_mutations.  |                                          |
+|                                          |                                          | Default False skips them.                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.filedownload.extensions          | list[str]                                | File extensions to download              | ['bak', 'bash', 'bashrc', 'cfg', 'conf', |
+|                                          |                                          |                                          | 'crt', 'csv', 'db', 'dll', 'doc',        |
+|                                          |                                          |                                          | 'docx', 'exe', 'ica', 'indd', 'ini',     |
+|                                          |                                          |                                          | 'jar', 'json', 'key', 'log', 'markdown', |
+|                                          |                                          |                                          | 'md', 'msi', 'odg', 'odp', 'ods', 'odt', |
+|                                          |                                          |                                          | 'pdf', 'pem', 'pps', 'ppsx', 'ppt',      |
+|                                          |                                          |                                          | 'pptx', 'ps1', 'pub', 'raw', 'rdp',      |
+|                                          |                                          |                                          | 'rsa', 'sh', 'sql', 'sqlite', 'swp',     |
+|                                          |                                          |                                          | 'sxw', 'tar.gz', 'tgz', 'tar', 'txt',    |
+|                                          |                                          |                                          | 'vbs', 'war', 'wpd', 'xls', 'xlsx',      |
+|                                          |                                          |                                          | 'xml', 'yaml', 'yml', 'zip', 'lzma',     |
+|                                          |                                          |                                          | 'rar', '7z', 'xz', 'bz2']                |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.filedownload.max_filesize        | str                                      | Cancel download if filesize is greater   | 10MB                                     |
+|                                          |                                          | than this size                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.filedownload.output_folder       | str                                      | Folder to download files to. If not      |                                          |
+|                                          |                                          | specified, downloaded files will be      |                                          |
+|                                          |                                          | deleted when the scan completes, to      |                                          |
+|                                          |                                          | minimize disk usage.                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.fingerprintx.skip_common_web     | bool                                     | Skip common web ports such as 80, 443,   | True                                     |
+|                                          |                                          | 8080, 8443, etc.                         |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.fingerprintx.version             | str                                      | fingerprintx version                     | 1.1.4                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.generic_ssrf.skip_dns_interactio | bool                                     | Do not report DNS interactions (only     | False                                    |
+| n                                        |                                          | HTTP interaction)                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gitlab_com.api_key               | str | list[str]                          | GitLab access token (for gitlab.com/org  |                                          |
+|                                          |                                          | only)                                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gitlab_onprem.api_key            | str | list[str]                          | GitLab access token (for self-hosted     |                                          |
+|                                          |                                          | instances only)                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.chrome_path            | str                                      | Path to chrome executable                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.idle_timeout           | int                                      | Skip the current gowitness batch if it   | 1800                                     |
+|                                          |                                          | stalls for longer than this many seconds |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.output_path            | str                                      | Where to save screenshots                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.resolution_x           | int                                      | Screenshot resolution x                  | 1440                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.resolution_y           | int                                      | Screenshot resolution y                  | 900                                      |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.social                 | bool                                     | Whether to screenshot social media       | False                                    |
+|                                          |                                          | webpages                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.threads                | int                                      | How many gowitness threads to spawn      | 0                                        |
+|                                          |                                          | (default is number of CPUs x 2)          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.timeout                | int                                      | Preflight check timeout                  | 10                                       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gowitness.version                | str                                      | Gowitness version                        | 3.1.1                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.graphql_introspection.graphql_en | list[str]                                | List of GraphQL endpoint to suffix to    | ['/', '/graphql', '/v1/graphql']         |
+| dpoint_urls                              |                                          | the target URL                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.graphql_introspection.output_fol | str                                      | Folder to save the GraphQL schemas to    |                                          |
+| der                                      |                                          |                                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.http.in_scope_only               | bool                                     | Only visit web resources that are in     | True                                     |
+|                                          |                                          | scope.                                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.http.max_response_size           | int                                      | Max response size in bytes               | 5242880                                  |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.http.store_responses             | bool                                     | Save raw HTTP responses to scan folder   | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.http.threads                     | int                                      | Number of concurrent requests            | 50                                       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.iis_shortnames.detect_only       | bool                                     | Only detect the vulnerability and do not | True                                     |
+|                                          |                                          | run the shortname scanner                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.iis_shortnames.max_node_count    | int                                      | Limit how many nodes to attempt to       | 50                                       |
+|                                          |                                          | resolve on any given recursion branch    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.iis_shortnames.speculate_magic_u | bool                                     | Attempt to discover iis 'magic' special  | True                                     |
+| rls                                      |                                          | folders                                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.concurrency                | int                                      | Number of concurrent workers, gets       | 3                                        |
+|                                          |                                          | overridden for SSH                       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.ftp_wordlist               | Union[str, list[str]]                    | Wordlist for FTP combined                | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | username:password, newline separated.    | miessler/SecLists/refs/heads/master/Pass |
+|                                          |                                          | Accepts a URL or local file path, or a   | words/Default-Credentials/ftp-           |
+|                                          |                                          | list of URLs/paths to merge multiple     | betterdefaultpasslist.txt                |
+|                                          |                                          | wordlists (duplicates removed).          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.mssql_wordlist             | Union[str, list[str]]                    | Wordlist for MSSQL combined              | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | username:password, newline separated.    | miessler/SecLists/refs/heads/master/Pass |
+|                                          |                                          | Accepts a URL or local file path, or a   | words/Default-Credentials/mssql-         |
+|                                          |                                          | list of URLs/paths to merge multiple     | betterdefaultpasslist.txt                |
+|                                          |                                          | wordlists (duplicates removed).          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.mysql_wordlist             | Union[str, list[str]]                    | Wordlist for MySQL combined              | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | username:password, newline separated.    | miessler/SecLists/refs/heads/master/Pass |
+|                                          |                                          | Accepts a URL or local file path, or a   | words/Default-Credentials/mysql-         |
+|                                          |                                          | list of URLs/paths to merge multiple     | betterdefaultpasslist.txt                |
+|                                          |                                          | wordlists (duplicates removed).          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.postgresql_wordlist        | Union[str, list[str]]                    | Wordlist for PostgreSQL combined         | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | username:password, newline separated.    | miessler/SecLists/refs/heads/master/Pass |
+|                                          |                                          | Accepts a URL or local file path, or a   | words/Default-Credentials/postgres-      |
+|                                          |                                          | list of URLs/paths to merge multiple     | betterdefaultpasslist.txt                |
+|                                          |                                          | wordlists (duplicates removed).          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.rate_limit                 | int                                      | Limit the number of requests per second, | 3                                        |
+|                                          |                                          | gets overridden for SSH                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.ssh_wordlist               | Union[str, list[str]]                    | Wordlist for SSH combined                | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | username:password, newline separated.    | miessler/SecLists/refs/heads/master/Pass |
+|                                          |                                          | Accepts a URL or local file path, or a   | words/Default-Credentials/ssh-           |
+|                                          |                                          | list of URLs/paths to merge multiple     | betterdefaultpasslist.txt                |
+|                                          |                                          | wordlists (duplicates removed).          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.telnet_wordlist            | Union[str, list[str]]                    | Wordlist for TELNET combined             | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | username:password, newline separated.    | miessler/SecLists/refs/heads/master/Pass |
+|                                          |                                          | Accepts a URL or local file path, or a   | words/Default-Credentials/telnet-        |
+|                                          |                                          | list of URLs/paths to merge multiple     | betterdefaultpasslist.txt                |
+|                                          |                                          | wordlists (duplicates removed).          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.version                    | str                                      | legba version                            | 1.1.1                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.legba.vnc_wordlist               | Union[str, list[str]]                    | Wordlist for VNC passwords, newline      | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | separated. Accepts a URL or local file   | miessler/SecLists/refs/heads/master/Pass |
+|                                          |                                          | path, or a list of URLs/paths to merge   | words/Default-Credentials/vnc-           |
+|                                          |                                          | multiple wordlists (duplicates removed). | betterdefaultpasslist.txt                |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.lightfuzz.avoid_wafs             | bool                                     | Avoid running against confirmed WAFs,    | True                                     |
+|                                          |                                          | which are likely to block lightfuzz      |                                          |
+|                                          |                                          | requests                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.lightfuzz.disable_post           | bool                                     | Disable processing of POST parameters,   | False                                    |
+|                                          |                                          | avoiding form submissions.               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.lightfuzz.emit_baseline_response | bool                                     | Emit canonical baseline responses as     | True                                     |
+| s                                        |                                          | HTTP_RESPONSE events so excavate can     |                                          |
+|                                          |                                          | mine them for new params/URLs.           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.lightfuzz.enabled_submodules     | list[str]                                | A list of submodules to enable. Empty    | ['sqli', 'cmdi', 'xss', 'path', 'ssti',  |
+|                                          |                                          | list enabled all modules.                | 'crypto', 'serial', 'esi', 'ssrf']       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.lightfuzz.force_common_headers   | bool                                     | Force emit commonly exploitable          | False                                    |
+|                                          |                                          | parameters that may be difficult to      |                                          |
+|                                          |                                          | detect                                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.lightfuzz.try_get_as_post        | bool                                     | For each GETPARAM, also fuzz it as a     | False                                    |
+|                                          |                                          | POSTPARAM (in addition to normal GET     |                                          |
+|                                          |                                          | fuzzing).                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.lightfuzz.try_post_as_get        | bool                                     | For each POSTPARAM, also fuzz it as a    | False                                    |
+|                                          |                                          | GETPARAM (in addition to normal POST     |                                          |
+|                                          |                                          | fuzzing).                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.medusa.snmp_versions             | list[str]                                | List of SNMP versions to attempt against | ['1', '2C']                              |
+|                                          |                                          | the SNMP server (default ['1', '2C'])    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.medusa.snmp_wordlist             | Union[str, list[str]]                    | Wordlist url for SNMP community strings, | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | newline separated (default https://raw.g | miessler/SecLists/refs/heads/master/Disc |
+|                                          |                                          | ithubusercontent.com/danielmiessler/SecL | overy/SNMP/common-snmp-community-        |
+|                                          |                                          | ists/refs/heads/master/Discovery/SNMP/sn | strings.txt                              |
+|                                          |                                          | mp.txt). Accepts a list of URLs/paths to |                                          |
+|                                          |                                          | merge multiple wordlists (duplicates are |                                          |
+|                                          |                                          | removed).                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.medusa.threads                   | int                                      | Number of communities to be tested       | 5                                        |
+|                                          |                                          | concurrently (default 5)                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.medusa.timeout_s                 | int                                      | Wait time for the SNMP response(s) once  | 5                                        |
+|                                          |                                          | at the end of all attempts (default 5)   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.medusa.wait_microseconds         | int                                      | Wait time after every SNMP request in    | 200                                      |
+|                                          |                                          | microseconds (default 200)               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.ntlm.try_all                     | bool                                     | Try every NTLM endpoint                  | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.batch_size                | int                                      | Number of targets to send to Nuclei per  | 200                                      |
+|                                          |                                          | batch (default 200)                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.budget                    | int                                      | Used in budget mode to set the number of | 1                                        |
+|                                          |                                          | allowed requests per host                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.concurrency               | int                                      | maximum number of templates to be        | 25                                       |
+|                                          |                                          | executed in parallel (default 25)        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.directory_only            | bool                                     | Filter out 'file' URL event (default     | True                                     |
+|                                          |                                          | True)                                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.etags                     | str                                      | tags to exclude from the scan            |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.mode                      | Literal['manual', 'technology',          | manual | technology | severe | budget.   | manual                                   |
+|                                          | 'severe', 'budget']                      | Technology: Only activate based on       |                                          |
+|                                          |                                          | technology events that match nuclei tags |                                          |
+|                                          |                                          | (nuclei -as mode). Manual (DEFAULT):     |                                          |
+|                                          |                                          | Fully manual settings. Severe: Only      |                                          |
+|                                          |                                          | critical and high severity templates     |                                          |
+|                                          |                                          | without intrusive. Budget: Limit Nuclei  |                                          |
+|                                          |                                          | to a specified number of HTTP requests   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.module_timeout            | int                                      | Max time in seconds to spend handling    | 21600                                    |
+|                                          |                                          | each batch of events                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.ratelimit                 | int                                      | maximum number of requests to send per   | 150                                      |
+|                                          |                                          | second (default 150)                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.retries                   | int                                      | number of times to retry a failed        | 0                                        |
+|                                          |                                          | request (default 0)                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.severity                  | str                                      | Filter based on severity field available |                                          |
+|                                          |                                          | in the template.                         |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.silent                    | bool                                     | Don't display nuclei's banner or status  | False                                    |
+|                                          |                                          | messages                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.tags                      | str                                      | execute a subset of templates that       |                                          |
+|                                          |                                          | contain the provided tags                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.templates                 | str                                      | template or template directory paths to  |                                          |
+|                                          |                                          | include in the scan                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nuclei.version                   | str                                      | nuclei version                           | 3.9.0                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.oauth.try_all                    | bool                                     | Check for OAUTH/IODC on every subdomain  | False                                    |
+|                                          |                                          | and URL.                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_cookies.recycle_words | bool                                     | Attempt to use words found during the    | False                                    |
+|                                          |                                          | scan on all other endpoints              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_cookies.skip_boring_w | bool                                     | Remove commonly uninteresting words from | True                                     |
+| ords                                     |                                          | the wordlist                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_cookies.wordlist      | Union[str, list[str]]                    | Define the wordlist to be used to derive |                                          |
+|                                          |                                          | cookies. Accepts a list of URLs/paths to |                                          |
+|                                          |                                          | merge multiple wordlists (duplicates are |                                          |
+|                                          |                                          | removed).                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_getparams.brute_short | bool                                     | Generate every 1-, 2-, and 3-letter      | False                                    |
+|                                          |                                          | [a-z] combination and add to the         |                                          |
+|                                          |                                          | wordlist. Costs ~18,278 extra requests   |                                          |
+|                                          |                                          | per host; opt-in for thorough scans.     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_getparams.mutate_case | bool                                     | Also test case-mutated variants of each  | False                                    |
+|                                          |                                          | entry (camelCase for snake_case/kebab-   |                                          |
+|                                          |                                          | case, Title case for single words).      |                                          |
+|                                          |                                          | Skipped on URLs with case-insensitive    |                                          |
+|                                          |                                          | backend extensions like .aspx/.cfm.      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_getparams.recycle_wor | bool                                     | Attempt to use words found during the    | False                                    |
+| ds                                       |                                          | scan on all other endpoints              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_getparams.skip_boring | bool                                     | Remove commonly uninteresting words from | True                                     |
+| _words                                   |                                          | the wordlist                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_getparams.wordlist    | Union[str, list[str]]                    | Define the wordlist to be used to derive |                                          |
+|                                          |                                          | headers. Accepts a list of URLs/paths to |                                          |
+|                                          |                                          | merge multiple wordlists (duplicates are |                                          |
+|                                          |                                          | removed).                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_headers.recycle_words | bool                                     | Attempt to use words found during the    | False                                    |
+|                                          |                                          | scan on all other endpoints              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_headers.skip_boring_w | bool                                     | Remove commonly uninteresting words from | True                                     |
+| ords                                     |                                          | the wordlist                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.paramminer_headers.wordlist      | Union[str, list[str]]                    | Define the wordlist to be used to derive |                                          |
+|                                          |                                          | headers. Accepts a list of URLs/paths to |                                          |
+|                                          |                                          | merge multiple wordlists (duplicates are |                                          |
+|                                          |                                          | removed).                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.adapter                 | str                                      | Manually specify a network interface,    |                                          |
+|                                          |                                          | such as "eth0" or "tun0". If not         |                                          |
+|                                          |                                          | specified, the first network interface   |                                          |
+|                                          |                                          | found with a default gateway will be     |                                          |
+|                                          |                                          | used.                                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.adapter_ip              | str                                      | Send packets using this IP address. Not  |                                          |
+|                                          |                                          | needed unless masscan's autodetection    |                                          |
+|                                          |                                          | fails                                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.adapter_mac             | str                                      | Send packets using this as the source    |                                          |
+|                                          |                                          | MAC address. Not needed unless masscan's |                                          |
+|                                          |                                          | autodetection fails                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.module_timeout          | int                                      | Max time in seconds to spend handling    | 259200                                   |
+|                                          |                                          | each batch of events                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.ping_first              | bool                                     | Only portscan hosts that reply to pings  | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.ping_only               | bool                                     | Ping sweep only, no portscan             | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.ports                   | str                                      | Ports to scan                            |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.rate                    | int                                      | Rate in packets per second               | 300                                      |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.router_mac              | str                                      | Send packets to this MAC address as the  |                                          |
+|                                          |                                          | destination. Not needed unless masscan's |                                          |
+|                                          |                                          | autodetection fails                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.skip_tags               | str                                      | Comma-separated event tags that will be  |                                          |
+|                                          |                                          | excluded from scanning (e.g. 'cdn,waf'). |                                          |
+|                                          |                                          | speculate will emit assumed-open ports   |                                          |
+|                                          |                                          | for these instead.                       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.top_ports               | int                                      | Top ports to scan (default 100) (to      | 100                                      |
+|                                          |                                          | override, specify 'ports')               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portscan.wait                    | int                                      | Seconds to wait for replies after scan   | 5                                        |
+|                                          |                                          | is complete                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.retirejs.node_version            | str                                      | Node.js version to install locally       | 18.19.1                                  |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.retirejs.severity                | Literal['none', 'low', 'medium', 'high', | Minimum severity level to report (none,  | medium                                   |
+|                                          | 'critical']                              | low, medium, high, critical)             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.retirejs.version                 | str                                      | retire.js version                        | 5.3.0                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.robots.include_allow             | bool                                     | Include 'Allow' Entries                  | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.robots.include_disallow          | bool                                     | Include 'Disallow' Entries               | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.robots.include_sitemap           | bool                                     | Include 'sitemap' entries                | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.securitytxt.emails               | bool                                     | emit EMAIL_ADDRESS events                | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.securitytxt.urls                 | bool                                     | emit URL_UNVERIFIED events               | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.telerik.exploit_RAU_crypto       | bool                                     | Attempt to confirm any RAU AXD           | False                                    |
+|                                          |                                          | detections are vulnerable                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.telerik.include_subdirs          | bool                                     | Include subdirectories in the scan (off  | False                                    |
+|                                          |                                          | by default)                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.url_manipulation.allow_redirects | bool                                     | Allowing redirects will sometimes create | True                                     |
+|                                          |                                          | false positives. Disallowing will        |                                          |
+|                                          |                                          | sometimes create false negatives.        |                                          |
+|                                          |                                          | Allowed by default.                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.brute_lines          | int                                      | Take only the first N lines from the     | 2000                                     |
+|                                          |                                          | wordlist when finding directories        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.brute_wordlist       | str                                      | Wordlist containing subdomains           | https://raw.githubusercontent.com/daniel |
+|                                          |                                          |                                          | miessler/SecLists/master/Discovery/DNS/s |
+|                                          |                                          |                                          | ubdomains-top1million-5000.txt           |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.certificate_sans     | bool                                     | Enable extraction and testing of Subject | False                                    |
+|                                          |                                          | Alternative Names from certificates      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.force_basehost       | str                                      | Use a custom base host (e.g.             |                                          |
+|                                          |                                          | evilcorp.com) instead of the default     |                                          |
+|                                          |                                          | behavior of using the current URL        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.max_concurrent_reque | int                                      | Maximum number of concurrent virtual     | 80                                       |
+| sts                                      |                                          | host requests                            |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.mutation_check       | bool                                     | Enable trying mutations of the target    | True                                     |
+|                                          |                                          | host                                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.report_interesting_d | bool                                     | Report interesting default content       | True                                     |
+| efault_content                           |                                          |                                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.require_inaccessible | bool                                     | Only test virtual hosts that are not     | True                                     |
+|                                          |                                          | directly accessible (for discovering     |                                          |
+|                                          |                                          | hidden content)                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.special_hosts        | bool                                     | Enable testing of special virtual host   | False                                    |
+|                                          |                                          | list (localhost, etc.)                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.subdomain_brute      | bool                                     | Enable subdomain brute-force on target   | True                                     |
+|                                          |                                          | host                                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virtualhost.wordcloud_check      | bool                                     | Enable check using scan-wide wordcloud   | False                                    |
+|                                          |                                          | data on target host                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.waf_bypass.neighbor_cidr         | int                                      | CIDR mask (24-31) used for neighbor      | 24                                       |
+|                                          |                                          | enumeration when search_ip_neighbors is  |                                          |
+|                                          |                                          | true                                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.waf_bypass.search_ip_neighbors   | bool                                     | Also check IP neighbors of the target    | True                                     |
+|                                          |                                          | domain                                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.waf_bypass.similarity_threshold  | float                                    | Similarity threshold for content         | 0.9                                      |
+|                                          |                                          | matching                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.wafw00f.generic_detect           | bool                                     | When no specific WAF detections are      | True                                     |
+|                                          |                                          | made, try to perform a generic detect    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.avoid_wafs              | bool                                     | Avoid running against confirmed WAFs,    | True                                     |
+|                                          |                                          | which are likely to block brute-force    |                                          |
+|                                          |                                          | requests                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.concurrency             | int                                      | Number of concurrent requests per URL    | 50                                       |
+|                                          |                                          | being fuzzed                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.extensions              | Union[str, list[str]]                    | Optionally include a list of extensions  |                                          |
+|                                          |                                          | to extend the keyword with (comma        |                                          |
+|                                          |                                          | separated or YAML list)                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.ignore_case             | bool                                     | Only put lowercase words into the        | False                                    |
+|                                          |                                          | wordlist                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.lines                   | int                                      | take only the first N lines from the     | 5000                                     |
+|                                          |                                          | wordlist when finding directories        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.max_depth               | int                                      | the maximum directory depth to attempt   | 0                                        |
+|                                          |                                          | to solve                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.rate                    | int                                      | Maximum requests per second (0 =         | 0                                        |
+|                                          |                                          | unlimited)                               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute.wordlist                | Union[str, list[str]]                    | Specify wordlist to use when finding     | https://raw.githubusercontent.com/daniel |
+|                                          |                                          | directories. Accepts a list of           | miessler/SecLists/master/Discovery/Web-  |
+|                                          |                                          | URLs/paths to merge multiple wordlists   | Content/raft-small-directories.txt       |
+|                                          |                                          | (duplicates are removed).                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.extensions   | str                                      | Optionally include a list of extensions  |                                          |
+|                                          |                                          | to extend the keyword with (comma        |                                          |
+|                                          |                                          | separated)                               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.find_common_ | bool                                     | Attempt to automatically detect common   | False                                    |
+| prefixes                                 |                                          | prefixes and make additional runs        |                                          |
+|                                          |                                          | against them                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.find_delimit | bool                                     | Attempt to detect common delimiters and  | True                                     |
+| ers                                      |                                          | make additional runs against them        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.find_subword | bool                                     | Attempt to detect subwords and make      | False                                    |
+| s                                        |                                          | additional runs against them             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.max_depth    | int                                      | the maximum directory depth to attempt   | 1                                        |
+|                                          |                                          | to solve                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.max_predicti | int                                      | The maximum number of predictions to     | 250                                      |
+| ons                                      |                                          | generate per shortname prefix            |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.rate         | int                                      | Rate of requests per second (default: 0) | 0                                        |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webbrute_shortnames.wordlist_ext | Union[str, list[str]]                    | Specify wordlist to use when making      |                                          |
+| ensions                                  |                                          | extension lists. Accepts a list of       |                                          |
+|                                          |                                          | URLs/paths to merge multiple wordlists   |                                          |
+|                                          |                                          | (duplicates are removed).                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.anubisdb.limit                   | int                                      | Limit the number of subdomains returned  | 1000                                     |
+|                                          |                                          | per query (increasing this may slow the  |                                          |
+|                                          |                                          | scan due to garbage results from this    |                                          |
+|                                          |                                          | API)                                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.apkpure.output_folder            | str                                      | Folder to download APKs to. If not       |                                          |
+|                                          |                                          | specified, downloaded APKs will be       |                                          |
+|                                          |                                          | deleted when the scan completes, to      |                                          |
+|                                          |                                          | minimize disk usage.                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bevigil.api_key                  | str | list[str]                          | BeVigil OSINT API Key                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bevigil.urls                     | bool                                     | Emit URLs in addition to DNS_NAMEs       | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bucket_file_enum.file_limit      | int                                      | Limit the number of files downloaded per | 50                                       |
+|                                          |                                          | bucket                                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bufferoverrun.api_key            | str | list[str]                          | BufferOverrun API key                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.bufferoverrun.commercial         | bool                                     | Use commercial API                       | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.builtwith.api_key                | str | list[str]                          | Builtwith API key                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.builtwith.redirects              | bool                                     | Also look up inbound and outbound        | True                                     |
+|                                          |                                          | redirects                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.c99.api_key                      | str | list[str]                          | c99.nl API key                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.censys_dns.api_key               | str | list[str]                          | Censys.io API Key in the format of       |                                          |
+|                                          |                                          | 'key:secret'                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.censys_dns.max_pages             | int                                      | Maximum number of pages to fetch (100    | 5                                        |
+|                                          |                                          | results per page)                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.censys_ip.api_key                | str | list[str]                          | Censys.io API Key in the format of       |                                          |
+|                                          |                                          | 'key:secret'                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.censys_ip.dns_names_limit        | int                                      | Maximum number of DNS names to extract   | 100                                      |
+|                                          |                                          | from dns.names (default 100)             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.censys_ip.in_scope_only          | bool                                     | Only query in-scope IPs. If False, will  | True                                     |
+|                                          |                                          | query up to distance 1.                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.certspotter.api_key              | str                                      | SSLMate API key (enables pagination and  |                                          |
+|                                          |                                          | higher rate limits)                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.chaos.api_key                    | str | list[str]                          | Chaos API key                            |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.credshed.credshed_url            | str                                      | URL of credshed server                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.credshed.password                | str                                      | Credshed password                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.credshed.username                | str                                      | Credshed username                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dehashed.api_key                 | str | list[str]                          | DeHashed API Key                         |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnsbimi.emit_raw_dns_records     | bool                                     | Emit RAW_DNS_RECORD events               | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnsbimi.emit_urls                | bool                                     | Emit URL_UNVERIFIED events               | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnsbimi.selectors                | str                                      | CSV list of BIMI selectors to check      | default,email,mail,bimi                  |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnscaa.dns_names                 | bool                                     | emit DNS_NAME events                     | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnscaa.emails                    | bool                                     | emit EMAIL_ADDRESS events                | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnscaa.in_scope_only             | bool                                     | Only check in-scope domains              | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnscaa.urls                      | bool                                     | emit URL_UNVERIFIED events               | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnstlsrpt.emit_emails            | bool                                     | Emit EMAIL_ADDRESS events                | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnstlsrpt.emit_raw_dns_records   | bool                                     | Emit RAW_DNS_RECORD events               | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.dnstlsrpt.emit_urls              | bool                                     | Emit URL_UNVERIFIED events               | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.docker_pull.all_tags             | bool                                     | Download all tags from each registry     | False                                    |
+|                                          |                                          | (Default False)                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.docker_pull.output_folder        | str                                      | Folder to download docker repositories   |                                          |
+|                                          |                                          | to. If not specified, downloaded docker  |                                          |
+|                                          |                                          | images will be deleted when the scan     |                                          |
+|                                          |                                          | completes, to minimize disk usage.       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.fullhunt.api_key                 | str | list[str]                          | FullHunt API Key                         |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.git_clone.api_key                | str | list[str]                          | Github token                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.git_clone.output_folder          | str                                      | Folder to clone repositories to. If not  |                                          |
+|                                          |                                          | specified, cloned repositories will be   |                                          |
+|                                          |                                          | deleted when the scan completes, to      |                                          |
+|                                          |                                          | minimize disk usage.                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gitdumper.fuzz_tags              | bool                                     | Fuzz for common git tag names (v0.0.1,   | False                                    |
+|                                          |                                          | 0.0.2, etc.) up to the                   |                                          |
+|                                          |                                          | max_semanic_version                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gitdumper.max_semanic_version    | int                                      | Maximum version number to fuzz for       | 10                                       |
+|                                          |                                          | (default < v10.10.10)                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.gitdumper.output_folder          | str                                      | Folder to download repositories to. If   |                                          |
+|                                          |                                          | not specified, downloaded repositories   |                                          |
+|                                          |                                          | will be deleted when the scan completes, |                                          |
+|                                          |                                          | to minimize disk usage.                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_codesearch.api_key        | str | list[str]                          | Github token                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_codesearch.limit          | int                                      | Limit code search to this many results   | 100                                      |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_org.api_key               | str | list[str]                          | Github token                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_org.include_member_repos  | bool                                     | Also enumerate organization members'     | False                                    |
+|                                          |                                          | repositories                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_org.include_members       | bool                                     | Enumerate organization members           | True                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_usersearch.api_key        | str | list[str]                          | Github token                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_workflows.api_key         | str | list[str]                          | Github token                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_workflows.num_logs        | int                                      | For each workflow fetch the last N       | 1                                        |
+|                                          |                                          | successful runs logs (max 100)           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.github_workflows.output_folder   | str                                      | Folder to download workflow logs and     |                                          |
+|                                          |                                          | artifacts to                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.hunterio.api_key                 | str | list[str]                          | Hunter.IO API key                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.ip2location.api_key              | str | list[str]                          | IP2location.io API Key                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.ip2location.lang                 | str                                      | Translation information(ISO639-1). The   |                                          |
+|                                          |                                          | translation is only applicable for       |                                          |
+|                                          |                                          | continent, country, region and city      |                                          |
+|                                          |                                          | name.                                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.ipneighbor.num_bits              | int                                      | Netmask size (in CIDR notation) to       | 4                                        |
+|                                          |                                          | check. Default is 4 bits (16 hosts)      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.ipstack.api_key                  | str | list[str]                          | IPStack GeoIP API Key                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.jadx.threads                     | int                                      | Maximum jadx threads for extracting      | 4                                        |
+|                                          |                                          | apk's, default: 4                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.kreuzberg.extensions             | list[str]                                | File extensions to parse                 | ['bak', 'bash', 'bashrc', 'conf', 'cfg', |
+|                                          |                                          |                                          | 'crt', 'csv', 'db', 'sqlite', 'doc',     |
+|                                          |                                          |                                          | 'docx', 'ica', 'indd', 'ini', 'json',    |
+|                                          |                                          |                                          | 'key', 'pub', 'log', 'markdown', 'md',   |
+|                                          |                                          |                                          | 'odg', 'odp', 'ods', 'odt', 'pdf',       |
+|                                          |                                          |                                          | 'pem', 'pps', 'ppsx', 'ppt', 'pptx',     |
+|                                          |                                          |                                          | 'ps1', 'rdp', 'rsa', 'sh', 'sql', 'swp', |
+|                                          |                                          |                                          | 'sxw', 'txt', 'vbs', 'wpd', 'xls',       |
+|                                          |                                          |                                          | 'xlsx', 'xml', 'yml', 'yaml']            |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.leakix.api_key                   | str | list[str]                          | LeakIX API Key                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.otx.api_key                      | str | list[str]                          | OTX API key                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.pgp.search_urls                  | list[str]                                | PGP key servers to search                | ['https://keyserver.ubuntu.com/pks/looku |
+|                                          |                                          |                                          | p?fingerprint=on&op=vindex&search=<query |
+|                                          |                                          |                                          | >', 'http://the.earth.li:11371/pks/looku |
+|                                          |                                          |                                          | p?fingerprint=on&op=vindex&search=<query |
+|                                          |                                          |                                          | >', 'https://pgpkeys.eu/pks/lookup?searc |
+|                                          |                                          |                                          | h=<query>&op=index', 'https://pgp.mit.ed |
+|                                          |                                          |                                          | u/pks/lookup?search=<query>&op=index']   |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portfilter.allowed_cdn_ports     | str                                      | Comma-separated list of ports that are   | 80,443                                   |
+|                                          |                                          | allowed to be scanned for CDNs           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.portfilter.cdn_tags              | str                                      | Comma-separated list of tags to skip,    | cdn,waf                                  |
+|                                          |                                          | e.g. 'cdn,waf'                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postman.api_key                  | str | list[str]                          | Postman API Key                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postman_download.api_key         | str | list[str]                          | Postman API Key                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postman_download.output_folder   | str                                      | Folder to download postman workspaces    |                                          |
+|                                          |                                          | to. If not specified, downloaded         |                                          |
+|                                          |                                          | workspaces will be deleted when the scan |                                          |
+|                                          |                                          | completes, to minimize disk usage.       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.securitytrails.api_key           | str | list[str]                          | SecurityTrails API key                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.shodan_dns.api_key               | str | list[str]                          | Shodan API key                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.shodan_enterprise.api_key        | str | list[str]                          | Shodan API Key                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.shodan_enterprise.in_scope_only  | bool                                     | Only query in-scope IPs. If False, will  | True                                     |
+|                                          |                                          | query up to distance 1.                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.shodan_idb.retries               | Optional[int]                            | How many times to retry API requests     | None                                     |
+|                                          |                                          | (e.g. after a 429 error). Overrides the  |                                          |
+|                                          |                                          | global web.api_retries setting.          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.subdomainradar.api_key           | str | list[str]                          | SubDomainRadar.io API key                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.subdomainradar.group             | Literal['fast', 'medium', 'deep']        | The enumeration group to use. Choose     | fast                                     |
+|                                          |                                          | from fast, medium, deep                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.subdomainradar.timeout           | int                                      | Timeout in seconds                       | 120                                      |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.ado_token                 | str                                      | Azure DevOps Personal Access Token (PAT) |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.github_token              | str                                      | GitHub API token for rate-limiting and   |                                          |
+|                                          |                                          | private repo access                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.gitlab_token              | str                                      | GitLab API token for private repo access |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.jenkins_password          | str                                      | Jenkins password for basic auth          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.jenkins_token             | str                                      | Jenkins API token                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.jenkins_username          | str                                      | Jenkins username for basic auth          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.jfrog_token               | str                                      | JFrog API token                          |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trajan.version                   | str                                      | Trajan version to download and use       | 1.0.0                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trickest.api_key                 | str | list[str]                          | Trickest API key                         |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trufflehog.concurrency           | int                                      | Number of concurrent workers             | 8                                        |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trufflehog.config                | str                                      | File path or URL to YAML trufflehog      |                                          |
+|                                          |                                          | config                                   |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trufflehog.deleted_forks         | bool                                     | Scan for deleted github forks. WARNING:  | False                                    |
+|                                          |                                          | This is SLOW. For a smaller repository,  |                                          |
+|                                          |                                          | this process can take 20 minutes. For a  |                                          |
+|                                          |                                          | larger repository, it could take hours.  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trufflehog.only_verified         | bool                                     | Only report credentials that have been   | True                                     |
+|                                          |                                          | verified                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.trufflehog.version               | str                                      | trufflehog version                       | 3.95.5                                   |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.urlscan.urls                     | bool                                     | Emit URLs in addition to DNS_NAMEs       | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.virustotal.api_key               | str | list[str]                          | VirusTotal API Key                       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.wayback.archive                  | bool                                     | fetch archived versions of dead URLs     | False                                    |
+|                                          |                                          | from the Wayback Machine and emit        |                                          |
+|                                          |                                          | HTTP_RESPONSE events (requires           |                                          |
+|                                          |                                          | urls=true)                               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.wayback.garbage_threshold        | int                                      | Dedupe similar urls if they are in a     | 10                                       |
+|                                          |                                          | group of this size or higher (lower      |                                          |
+|                                          |                                          | values == less garbage data)             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.wayback.max_records              | int                                      | Maximum number of URLs to fetch from the | 100000                                   |
+|                                          |                                          | CDX API                                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.wayback.parameters               | bool                                     | emit WEB_PARAMETER events for query      | False                                    |
+|                                          |                                          | parameters discovered in archived URLs   |                                          |
+|                                          |                                          | (requires urls=true)                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.wayback.urls                     | bool                                     | emit URLs in addition to DNS_NAMEs       | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.asset_inventory.output_file      | str                                      | Set a custom output file                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.asset_inventory.recheck          | bool                                     | When use_previous=True, don't retain     | False                                    |
+|                                          |                                          | past details like open ports or          |                                          |
+|                                          |                                          | findings. Instead, allow them to be      |                                          |
+|                                          |                                          | rediscovered by the new scan             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.asset_inventory.summary_netmask  | int                                      | Subnet mask to use when summarizing IP   | 16                                       |
+|                                          |                                          | addresses at end of scan                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.asset_inventory.use_previous     | bool                                     | Emit previous asset inventory as new     | False                                    |
+|                                          |                                          | events (use in conjunction with -n       |                                          |
+|                                          |                                          | <old_scan_name>)                         |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.csv.output_file                  | str                                      | Output to CSV file                       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.discord.event_types              | list[str]                                | Types of events to send                  | ['FINDING']                              |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.discord.min_severity             | str                                      | Only allow FINDING events of this        | LOW                                      |
+|                                          |                                          | severity or higher                       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.discord.retries                  | int                                      | Number of times to retry sending the     | 10                                       |
+|                                          |                                          | message before skipping the event        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.discord.webhook_url              | str                                      | Discord webhook URL                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.elastic.password                 | str                                      | Elastic password                         | bbotislife                               |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.elastic.timeout                  | int                                      | HTTP timeout                             | 10                                       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.elastic.url                      | str                                      | Elastic URL (e.g. https://localhost:9200 | https://localhost:9200/bbot_events/_doc  |
+|                                          |                                          | /<your_index>/_doc)                      |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.elastic.username                 | str                                      | Elastic username                         | elastic                                  |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.emails.output_file               | str                                      | Output to file                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.json.output_file                 | str                                      | Output to file                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.kafka.bootstrap_servers          | str                                      | A comma-separated list of Kafka server   | localhost:9092                           |
+|                                          |                                          | addresses                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.kafka.topic                      | str                                      | The Kafka topic to publish events to     | bbot_events                              |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mongo.collection_prefix          | str                                      | Prefix the name of each collection with  |                                          |
+|                                          |                                          | this string                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mongo.database                   | str                                      | The name of the database to use          | bbot                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mongo.password                   | str                                      | The password to use to connect to the    |                                          |
+|                                          |                                          | database                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mongo.uri                        | str                                      | The URI of the MongoDB server            | mongodb://localhost:27017                |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mongo.username                   | str                                      | The username to use to connect to the    |                                          |
+|                                          |                                          | database                                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mysql.database                   | str                                      | The database name to connect to          | bbot                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mysql.host                       | str                                      | The server running MySQL                 | localhost                                |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mysql.password                   | str                                      | The password to connect to MySQL         | bbotislife                               |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mysql.port                       | int                                      | The port to connect to MySQL             | 3306                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mysql.retries                    | int                                      | Number of times to retry connecting to   | 10                                       |
+|                                          |                                          | the database (1 second between retries)  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.mysql.username                   | str                                      | The username to connect to MySQL         | root                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nats.servers                     | list                                     | A list of NATS server addresses          | []                                       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.nats.subject                     | str                                      | The NATS subject to publish events to    | bbot_events                              |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.neo4j.password                   | str                                      | Neo4j password                           | bbotislife                               |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.neo4j.uri                        | str                                      | Neo4j server + port                      | bolt://localhost:7687                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.neo4j.username                   | str                                      | Neo4j username                           | neo4j                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postgres.database                | str                                      | The database name to connect to          | bbot                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postgres.host                    | str                                      | The server running Postgres              | localhost                                |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postgres.password                | str                                      | The password to connect to Postgres      | bbotislife                               |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postgres.port                    | int                                      | The port to connect to Postgres          | 5432                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postgres.retries                 | int                                      | Number of times to retry connecting to   | 10                                       |
+|                                          |                                          | the database (1 second between retries)  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.postgres.username                | str                                      | The username to connect to Postgres      | postgres                                 |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.rabbitmq.queue                   | str                                      | The RabbitMQ queue to publish events to  | bbot_events                              |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.rabbitmq.url                     | str                                      | The RabbitMQ connection URL              | amqp://guest:guest@localhost/            |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.slack.event_types                | list[str]                                | Types of events to send                  | ['FINDING']                              |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.slack.min_severity               | str                                      | Only allow FINDING events of this        | LOW                                      |
+|                                          |                                          | severity or higher                       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.slack.retries                    | int                                      | Number of times to retry sending the     | 10                                       |
+|                                          |                                          | message before skipping the event        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.slack.webhook_url                | str                                      | Slack webhook URL                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.splunk.hectoken                  | str                                      | HEC Token                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.splunk.index                     | str                                      | Index to send data to                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.splunk.source                    | str                                      | Source path to be added to the metadata  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.splunk.timeout                   | int                                      | HTTP timeout                             | 10                                       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.splunk.url                       | str                                      | Web URL                                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.sqlite.database                  | str                                      | The path to the sqlite database file     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.sqlite.retries                   | int                                      | Number of times to retry connecting to   | 10                                       |
+|                                          |                                          | the database (1 second between retries)  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.stdout.accept_dupes              | bool                                     | Whether to show duplicate events,        | True                                     |
+|                                          |                                          | default True                             |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.stdout.event_fields              | list                                     | Which event fields to display            | []                                       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.stdout.event_types               | list                                     | Which events to display, default all     | []                                       |
+|                                          |                                          | event types                              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.stdout.format                    | Literal['text', 'json']                  | Which text format to display, choices:   | text                                     |
+|                                          |                                          | text,json                                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.stdout.in_scope_only             | bool                                     | Whether to only show in-scope events     | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.subdomains.include_unresolved    | bool                                     | Include unresolved subdomains in output  | False                                    |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.subdomains.output_file           | str                                      | Output to file                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.teams.event_types                | list[str]                                | Types of events to send                  | ['FINDING']                              |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.teams.min_severity               | str                                      | Only allow FINDING events of this        | LOW                                      |
+|                                          |                                          | severity or higher                       |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.teams.retries                    | int                                      | Number of times to retry sending the     | 10                                       |
+|                                          |                                          | message before skipping the event        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.teams.webhook_url                | str                                      | Teams webhook URL                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.txt.output_file                  | str                                      | Output to file                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.web_parameters.include_count     | bool                                     | Include the count of each parameter in   | False                                    |
+|                                          |                                          | the output                               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.web_parameters.output_file       | str                                      | Output to file                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.web_report.css_theme_file        | str                                      | CSS theme URL for HTML output            | https://cdnjs.cloudflare.com/ajax/libs/g |
+|                                          |                                          |                                          | ithub-markdown-css/5.1.0/github-         |
+|                                          |                                          |                                          | markdown.min.css                         |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.web_report.output_file           | str                                      | Output to file                           |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webhook.bearer                   | str                                      | Authorization Bearer token               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webhook.headers                  | dict                                     | Additional headers to send with the      | {}                                       |
+|                                          |                                          | request                                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webhook.method                   | str                                      | HTTP method                              | POST                                     |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webhook.password                 | str                                      | Password (basic auth)                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webhook.timeout                  | int                                      | HTTP timeout                             | 10                                       |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webhook.url                      | str                                      | Web URL                                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.webhook.username                 | str                                      | Username (basic auth)                    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.websocket.ignore_ssl             | bool                                     | Ignores all Websocket SSL related errors | False                                    |
+|                                          |                                          | (like Self-Signed Certificates, etc.)    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.websocket.preserve_graph         | bool                                     | Preserve full chains of events in the    | True                                     |
+|                                          |                                          | graph (prevents orphans)                 |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.websocket.token                  | str                                      | Authorization Bearer token               |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.websocket.url                    | str                                      | Web URL                                  |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.zeromq.zmq_address               | str                                      | The ZeroMQ socket address to publish     |                                          |
+|                                          |                                          | events to (e.g. tcp://localhost:5555)    |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.excavate.custom_yara_rules       | str                                      | Include custom Yara rules                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.excavate.max_form_bytes          | int                                      | Maximum byte slice of the response body  | 262144                                   |
+|                                          |                                          | searched for a single <form> body. YARA  |                                          |
+|                                          |                                          | only locates form openings; the bounded  |                                          |
+|                                          |                                          | slice is what the Python re-based        |                                          |
+|                                          |                                          | extractor scans for fields. Caps worst-  |                                          |
+|                                          |                                          | case extraction work per form match.     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.excavate.speculate_params        | bool                                     | Enable speculative parameter extraction  | False                                    |
+|                                          |                                          | from JSON and XML content                |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.excavate.yara_max_match_data     | int                                      | Sets the maximum amount of text that can | 2000                                     |
+|                                          |                                          | extracted from a YARA regex              |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.speculate.essential_only         | bool                                     | Only enable essential speculate features | False                                    |
+|                                          |                                          | (no extra discovery)                     |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.speculate.ip_range_max_hosts     | int                                      | Max number of hosts an IP_RANGE can      | 65536                                    |
+|                                          |                                          | contain to allow conversion into         |                                          |
+|                                          |                                          | IP_ADDRESS events                        |                                          |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
+| modules.speculate.ports                  | str                                      | The set of ports to speculate on         | 80,443                                   |
++------------------------------------------+------------------------------------------+------------------------------------------+------------------------------------------+
