@@ -1,6 +1,55 @@
 import json
+from pathlib import Path
 
 from integrations.bbot.parser import event_display_value, parse_bbot_line
+
+# Real JSONL captured from `bbot -t example.com -m crt --json --no-color
+# --yes` against BBOT 3.0.0 (pipx, WSL2 Ubuntu-24.04) during manual
+# validation - see the validation report. example.com is IANA's reserved
+# documentation/testing domain (RFC 2606); only passive DNS/CT lookups were
+# performed, no active probing.
+REAL_EVENTS_JSONL = (Path(__file__).parent / "fixtures" / "bbot_events_real.jsonl").read_text(encoding="utf-8")
+
+
+def test_real_bbot_events_all_parse_without_warnings():
+    lines = [line for line in REAL_EVENTS_JSONL.splitlines() if line.strip()]
+    assert lines
+    for line in lines:
+        event, warning = parse_bbot_line(line)
+        assert warning is None, f"unexpected warning for real event line: {warning}"
+        assert event is not None
+
+
+def test_real_scan_event_parent_is_self_and_data_json_is_populated():
+    lines = [line for line in REAL_EVENTS_JSONL.splitlines() if line.strip()]
+    scan_events = []
+    for line in lines:
+        event, _ = parse_bbot_line(line)
+        if event.event_type == "SCAN":
+            scan_events.append(event)
+    assert scan_events
+    first = scan_events[0]
+    # Real BBOT SCAN lifecycle events self-reference (parent == id) - this
+    # is not a parent/child relationship (see mapper.build_relationships's
+    # explicit guard against self-loops).
+    assert first.parent_id == first.event_id
+    # SCAN events carry a top-level "data_json" key (scan name/target/
+    # preset/status), with no "data" key at all.
+    assert first.data_json is not None
+    assert "target" in first.data_json
+
+
+def test_real_dns_name_event_has_resolved_hosts_and_tags():
+    lines = [line for line in REAL_EVENTS_JSONL.splitlines() if line.strip()]
+    dns_events = []
+    for line in lines:
+        event, _ = parse_bbot_line(line)
+        if event.event_type == "DNS_NAME" and event.data == "example.com":
+            dns_events.append(event)
+    assert dns_events
+    root = dns_events[0]
+    assert root.resolved_hosts
+    assert "domain" in root.tags or "target" in root.tags
 
 
 def test_parses_known_event_type():

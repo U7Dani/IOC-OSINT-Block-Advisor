@@ -36,6 +36,11 @@ KNOWN_EVENT_TYPES = {
     "SCREENSHOT",
     "FILESYSTEM",
     "MOBILE_APP",
+    # Observed on a real BBOT 3.0.0 install (manual validation): scan
+    # lifecycle/meta events and speculative organization stubs. Neither
+    # represents discovered infrastructure by itself.
+    "SCAN",
+    "ORG_STUB",
 }
 
 
@@ -85,7 +90,17 @@ def parse_bbot_line(line: str) -> tuple[BBOTEvent | None, str | None]:
     resolved_hosts = [str(h) for h in resolved_hosts]
 
     data = obj.get("data")
-    data_json = data if isinstance(data, dict) else None
+    # Real BBOT events carry "data_json" as its own top-level key (e.g. on
+    # SCAN lifecycle events, which have no "data" key at all) - it is not
+    # simply "data" when data happens to be dict-shaped, though we still
+    # fall back to that for safety if a future version nests it instead.
+    raw_data_json = obj.get("data_json")
+    if isinstance(raw_data_json, dict):
+        data_json = raw_data_json
+    elif isinstance(data, dict):
+        data_json = data
+    else:
+        data_json = None
 
     if not event_id:
         # Not all BBOT versions include a stable id; synthesize a

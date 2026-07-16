@@ -122,6 +122,26 @@ def test_relationships_preserve_parent_child_and_direct_vs_indirect():
     assert by_target["child"].source_id == "root"
 
 
+def test_scan_event_never_becomes_a_related_asset():
+    """Regression test: a real BBOT SCAN event's data_json carries a "name"
+    key (the scan's own random codename, e.g. "strenuous_lois") which
+    event_display_value's generic key lookup would otherwise misread as a
+    discovered asset value."""
+    scan_event = _event("SCAN:abc", "SCAN", None)
+    scan_event.data_json = {"name": "strenuous_lois", "target": {"target": ["example.com"]}}
+    findings = classify_events([scan_event])
+    assert findings == []
+
+
+def test_scan_lifecycle_self_referencing_event_produces_no_relationship():
+    """Regression test: real BBOT SCAN events set parent == id (observed
+    on a real BBOT 3.0.0 install during manual validation). That must not
+    produce a self-loop relationship."""
+    events = [_event("SCAN:abc123", "SCAN", None, parent_id="SCAN:abc123", scope_distance=0)]
+    relationships = build_relationships(events)
+    assert relationships == []
+
+
 def test_relationship_alone_is_never_evidence_of_maliciousness():
     events = [
         _event("root", "DNS_NAME", "example.com", scope_distance=0),

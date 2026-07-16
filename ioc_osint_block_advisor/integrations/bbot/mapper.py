@@ -80,7 +80,9 @@ def build_relationships(events: list[BBOTEvent]) -> list[BBOTRelationship]:
     isn't backed by an actual parent_id from BBOT's own event graph."""
     relationships: list[BBOTRelationship] = []
     for event in events:
-        if not event.parent_id:
+        # Real BBOT SCAN lifecycle events self-reference (parent == id);
+        # that's not a parent/child relationship between two assets.
+        if not event.parent_id or event.parent_id == event.event_id:
             continue
         direct = event.scope_distance is not None and 0 <= event.scope_distance <= 1
         relationships.append(
@@ -203,9 +205,20 @@ def _caution_label(event: BBOTEvent) -> str | None:
     return None
 
 
+
+# Scan lifecycle/meta event types (observed on a real BBOT 3.0.0 install):
+# not discovered infrastructure, so never turned into a finding/asset.
+# Real SCAN events carry a "name" key in their data_json (BBOT's own
+# random scan codename, e.g. "strenuous_lois") which would otherwise be
+# misread as an asset value by event_display_value's generic key lookup.
+_NON_ASSET_EVENT_TYPES = {"SCAN"}
+
+
 def classify_events(events: list[BBOTEvent]) -> list[MappedFinding]:
     findings: list[MappedFinding] = []
     for event in events:
+        if event.event_type in _NON_ASSET_EVENT_TYPES:
+            continue
         direct = event.scope_distance is not None and 0 <= event.scope_distance <= 1
         value = event_display_value(event)
 
