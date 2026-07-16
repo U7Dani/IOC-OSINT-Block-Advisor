@@ -65,6 +65,7 @@ La herramienta aplica una lógica conservadora: **mejor revisar que bloquear mal
 - 📤 Exportación de blocklists separadas.
 - 🧪 Tests unitarios incluidos.
 - 🔒 OSINT externo opcional y deshabilitado por defecto.
+- 🛰️ Enriquecimiento opcional con [BBOT](https://github.com/blacklanternsecurity/bbot) (dominios/URLs/IPs/emails), con SOC Passive como modo por defecto.
 
 ---
 
@@ -76,7 +77,10 @@ flowchart TD
     B[IOCs observados] --> C
     C --> D[Refang y normalización]
     D --> E[Clasificador de tipo y rol]
-    E --> F[Motor de decisión conservador]
+    E --> E2[Protección de allowlists / cliente / SaaS / tenants]
+    E2 --> E3[Proveedores OSINT existentes]
+    E3 --> E4[Enriquecimiento BBOT opcional]
+    E4 --> F[Motor de decisión conservador]
     F --> G{Decisión}
     G -->|BLOCK_DOMAIN| H[Exportar dominio bloqueable]
     G -->|BLOCK_URL_EXACT| I[Exportar URL exacta]
@@ -177,7 +181,13 @@ ioc_osint_block_advisor/
 │   ├── decision_engine.py
 │   ├── exporter.py
 │   ├── osint_runner.py
+│   ├── osint_bbot.py          # único punto de entrada a la integración BBOT
 │   └── utils.py
+├── integrations/
+│   └── bbot/                  # discovery, command builder, runner, parser,
+│                               # mapper, cache, health, settings (ver sección BBOT)
+├── presets/
+│   └── bbot/                  # presets YAML propios (soc_passive, authorized_active, ...)
 ├── config/
 │   ├── allowlist_domains.txt
 │   ├── trusted_saas_domains.txt
@@ -187,7 +197,8 @@ ioc_osint_block_advisor/
 └── tests/
     ├── test_fang.py
     ├── test_extractor.py
-    └── test_defanged_parse_regression.py
+    ├── test_defanged_parse_regression.py
+    └── bbot/                  # tests offline de la integración BBOT (sin red, sin BBOT instalado)
 ```
 
 ---
@@ -270,6 +281,97 @@ La herramienta está diseñada para no exponer IOCs sensibles de una investigaci
 
 ---
 
+## 🛰️ Enriquecimiento BBOT (opcional)
+
+[BBOT](https://github.com/blacklanternsecurity/bbot) es una herramienta externa de reconocimiento OSINT / mapeo de superficie de ataque (licencia AGPLv3 - ver `NOTICE_BBOT.md`). IOC OSINT Block Advisor puede invocarla de forma **opcional** para enriquecer un IOC con infraestructura y relaciones técnicas descubiertas (subdominios, DNS, certificados, ASN, puertos, tecnologías, repositorios, etc.).
+
+### Principio fundamental
+
+> BBOT **descubre** infraestructura y relaciones técnicas. **Nunca decide** que un IOC es malicioso o bloqueable.
+
+```text
+IOC introducido por el analista
+  → extracción y normalización
+  → clasificación local
+  → protección de allowlists, clientes, SaaS y tenants
+  → proveedores OSINT existentes
+  → enriquecimiento BBOT (opcional)
+  → normalización de relaciones y evidencias
+  → scoring conservador con límites por categoría
+  → gates de seguridad existentes
+  → decisión final del motor de decisión (sin cambios de autoridad)
+```
+
+La decisión final sigue siendo exclusivamente `BLOCK_DOMAIN` / `BLOCK_URL_EXACT` / `BLOCK_SENDER_EXACT` / `BLOCK_HASH` / `REVIEW` / `DO_NOT_BLOCK` / `OBSERVED_ONLY`, calculada por `modules/decision_engine.py`. BBOT nunca genera directamente una decisión bloqueable: como mucho, aporta evidencia capada (`integrations/bbot/mapper.py`) que ese motor evalúa con las mismas reglas conservadoras que ya existían (allowlists, gating por señal directa, etc.).
+
+### Perfiles de seguridad
+
+| Perfil | Contacta objetivo | Loud/Invasive | Uso |
+|---|---:|---:|---|
+| **SOC Passive** (por defecto) | No | No | Investigación de terceros / primer triaje |
+| **SOC Passive Deep** | No | No | OSINT pasivo ampliado (CT, passive DNS, histórico, repos, cloud/ASN) |
+| **Authorized Active** | Sí | Controlado | Infraestructura sobre la que tienes autorización expresa |
+| **Full BBOT** | Depende | Puede | Laboratorio o análisis autorizado; selección manual de cualquier módulo/preset detectado |
+
+Los perfiles `Authorized Active` y `Full BBOT` **exigen una confirmación explícita** en la interfaz antes de ejecutar ("Confirma que dispones de autorización expresa para analizar este objetivo") porque implican conexión directa contra el objetivo.
+
+### Runtimes soportados
+
+BBOT se ejecuta siempre como **proceso externo** (nunca como código importado):
+
+- **Native**: usa el ejecutable `bbot` del sistema.
+- **WSL**: ejecuta BBOT dentro de una distribución WSL desde Windows.
+- **Docker**: ejecuta una imagen configurable (por defecto `blacklanternsecurity/bbot:stable`).
+- **Auto** (por defecto): prueba native → WSL → Docker, en ese orden, y usa el primero que responda a `bbot --version`.
+
+El botón **"Comprobar instalación"** de la interfaz ejecuta un diagnóstico real (`integrations/bbot/health.py`) y explica exactamente qué falta (binario no encontrado, WSL no disponible, Docker no disponible, API key ausente, etc.) en vez de un "Error" genérico.
+
+### Descubrimiento dinámico de capacidades
+
+Los módulos, presets y módulos de salida **no están hardcodeados**: se descubren dinámicamente ejecutando `bbot -l`, `bbot -lp`, `bbot -lo` y `bbot --version` contra la instalación real (`integrations/bbot/discovery.py`), con una caché en memoria invalidable desde el botón **"Actualizar capacidades"**. El selector **"Seleccionar módulos"** (modo Full BBOT) muestra todo lo detectado, marcando visualmente qué módulos son `active`/`loud`/`invasive`/requieren API key.
+
+### Seguridad de la integración
+
+- Los argumentos de BBOT se construyen siempre como **lista** (`subprocess.Popen(..., shell=False)`), nunca como cadena de shell — ver `integrations/bbot/command_builder.py` y sus tests de inyección de comandos (`tests/bbot/test_command_builder.py`).
+- Objetivos, módulos, presets y módulos de salida se validan contra la instalación real antes de usarse.
+- Cada escaneo tiene **timeout** configurable y puede **cancelarse** desde la interfaz; al cancelar o agotar el timeout se termina todo el árbol de procesos (sin procesos zombie).
+- Existe **caché local** por objetivo/runtime/versión/perfil/módulos (nunca se mezclan resultados de perfiles distintos, ni se reutiliza un escaneo activo como si fuera pasivo).
+- Por privacidad, las URLs se envían a BBOT reducidas a su dominio salvo que actives explícitamente "Incluir URL completa"; los emails se reducen siempre a su dominio.
+- Ninguna API key se guarda en `config/bbot_settings.json`, en los presets versionados, en la caché, en logs ni en excepciones (ver `integrations/bbot/settings.redact`).
+
+### Límites de scoring (nunca "más eventos = más riesgo")
+
+El mapeador de evidencia (`integrations/bbot/mapper.py`) aplica límites máximos por categoría y deduplica semánticamente antes de sumar nada al score:
+
+| Categoría | Límite máximo |
+|---|---:|
+| Reputación (malware/C2, vulnerabilidad crítica, secreto expuesto) | +40 |
+| Certificado | +20 |
+| Relación (takeover, phishing landing, redirección maliciosa confirmados) | +20 |
+| Hosting/contexto (informativo o infraestructura compartida) | ±10 |
+
+200 subdominios descubiertos, un puerto 443 abierto o un certificado Let's Encrypt **puntúan 0** por sí solos. Una IP en infraestructura cloud compartida (Cloudflare/Azure/AWS) nunca se exporta a blocklist (la política existente de no exportar IPs se mantiene sin cambios).
+
+### Instalación de BBOT (acción consciente del analista)
+
+La aplicación **no instala BBOT automáticamente**. Instálalo tú mismo si quieres usar esta integración, por ejemplo:
+
+```powershell
+# Native (con pipx)
+pipx install bbot
+
+# WSL
+wsl --install
+wsl -- pipx install bbot
+
+# Docker
+docker pull blacklanternsecurity/bbot:stable
+```
+
+Sin BBOT instalado, la aplicación sigue funcionando exactamente igual que antes de esta integración.
+
+---
+
 ## 📤 Exportaciones generadas
 
 La herramienta genera salidas separadas para facilitar el trabajo SOC:
@@ -283,6 +385,17 @@ output/
 ├── review_items.csv
 ├── full_report.md
 └── ticket_summary.txt
+```
+
+Si se usó el enriquecimiento BBOT en el análisis, se generan además (solo informativos, nunca alimentan las blocklists):
+
+```text
+output/
+├── bbot_summary.json        # por IOC: hallazgos, infraestructura compartida, recomendación final
+├── bbot_events.jsonl        # eventos BBOT crudos (uno por línea)
+├── bbot_relationships.json  # relaciones padre-hijo con tipo/directa/módulo
+├── bbot_assets.csv          # activos relacionados descubiertos
+└── bbot_findings.csv        # hallazgos técnicos con impacto en score
 ```
 
 ### Regla de exportación
@@ -386,7 +499,9 @@ El autor no se hace responsable del uso indebido, bloqueos incorrectos o decisio
 
 ## 📄 Licencia
 
-Consulta el archivo `LICENSE` del repositorio.
+Consulta el archivo `LICENSE` del repositorio (MIT).
+
+La integración opcional con BBOT (AGPLv3, proceso externo, no vendido en este repositorio) se documenta por separado en `NOTICE_BBOT.md`.
 
 ---
 
