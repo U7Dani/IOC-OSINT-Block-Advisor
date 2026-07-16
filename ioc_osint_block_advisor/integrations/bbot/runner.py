@@ -67,12 +67,16 @@ class BBOTRunner:
         self._on_status = on_status
         self.status = RUN_PENDING
         self._process: subprocess.Popen | None = None
-        # wsl.exe emits UTF-16LE on its stdout/stderr whenever they are
-        # redirected (piped) instead of attached to a real console - this is
-        # a Windows/WSL interop quirk of wsl.exe itself, not of the Linux
-        # process running inside it. Pass stream_encoding="utf-16-le" when
-        # this runner's argv is wrapped through the "wsl" backend so lines
-        # are split/decoded correctly instead of producing garbled JSON.
+        # NOTE: manual validation against a real BBOT 3.0.0 install showed
+        # that wsl.exe relays an actual Linux child process's stdout/stderr
+        # as plain UTF-8 (raw byte passthrough) - it does NOT re-encode it
+        # to UTF-16LE. The UTF-16LE quirk only affects wsl.exe's OWN
+        # management/error text (e.g. "no distribution installed"), which
+        # is handled separately in discovery._decode_output for the
+        # short-lived capability queries. This parameter is therefore not
+        # used for the wsl backend by orchestrator.run_scan(); it remains
+        # available as a general-purpose escape hatch for a future backend
+        # that does emit a non-UTF-8 stream.
         self.stream_encoding = stream_encoding
 
     def _set_status(self, status: str) -> None:
@@ -237,6 +241,15 @@ class BBOTRunner:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                # BBOT (and the WSL relay of it) emit UTF-8 regardless of
+                # the host locale. Without this, Python falls back to
+                # locale.getpreferredencoding() (e.g. cp1252 on a Spanish
+                # Windows install), which corrupts any non-ASCII byte in
+                # the JSON stream instead of raising - found during manual
+                # validation against a real scan whose events contained
+                # accented text.
+                encoding="utf-8",
+                errors="replace",
                 bufsize=1,
                 shell=False,
             )

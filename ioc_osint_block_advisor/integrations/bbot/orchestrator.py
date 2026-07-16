@@ -48,6 +48,30 @@ def invalidate_capabilities_cache() -> None:
         _capabilities_cache.clear()
 
 
+def _translate_windows_path_to_wsl(path_str: str) -> str:
+    """Translate a resolved Windows absolute path (e.g. ``C:\\Users\\x\\y``)
+    to the path WSL sees it at (``/mnt/c/Users/x/y``).
+
+    Found during manual validation: passing a raw Windows path as a BBOT
+    CLI argument (e.g. ``-p C:\\...\\soc_passive.yml``) to a process running
+    *inside* WSL silently fails to load the file (BBOT looks for it
+    relative to its own Linux filesystem view) - it does not raise, it
+    just behaves as if the preset/argument were absent. Validation itself
+    (``command_builder.validate_preset_file``) must still run against the
+    real Windows-visible path, since that check runs in this (Windows)
+    Python process; only the argv value handed to the wsl-wrapped process
+    needs the translated form.
+    """
+    from pathlib import PureWindowsPath
+
+    p = PureWindowsPath(path_str)
+    if not p.drive:
+        return path_str
+    drive_letter = p.drive.rstrip(":").lower()
+    rest = "/".join(p.parts[1:])
+    return f"/mnt/{drive_letter}/{rest}"
+
+
 def _preset_allowed_dirs(settings: BBOTSettings) -> list:
     from pathlib import Path
 
@@ -72,13 +96,22 @@ def _build_argv(config: BBOTScanConfig, settings: BBOTSettings, runtime: BBOTRun
         output_modules=config.output_modules,
         exclude_modules=config.exclude_modules,
         flags=config.flags,
+        require_flags=config.require_flags,
+        exclude_flags=config.exclude_flags,
         workdir=str(workdir) if runtime.backend == "native" else None,
         capabilities=capabilities,
     )
+    argv = built.argv
+    if runtime.backend == "wsl":
+        from pathlib import Path
+
+        translations = {str(Path(p).resolve()): _translate_windows_path_to_wsl(str(Path(p).resolve())) for p in config.preset_files}
+        argv = [translations.get(a, a) for a in argv]
+
     prefix = backend_prefix(runtime.backend, settings)
     if runtime.backend == "native":
-        return built.argv
-    return [*prefix, *built.argv]
+        return argv
+    return [*prefix, *argv]
 
 
 def run_scan(
@@ -127,7 +160,6 @@ def run_scan(
         timeout_seconds=config.timeout_seconds,
         max_events=config.max_events,
         cancel_event=cancel_event,
-        stream_encoding="utf-16-le" if runtime.backend == "wsl" else None,
         on_event=on_event,
         on_status=on_status,
     )

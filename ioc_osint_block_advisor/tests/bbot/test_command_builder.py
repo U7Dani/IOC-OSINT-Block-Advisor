@@ -50,6 +50,21 @@ def test_target_length_limit_enforced():
         validate_target("a" * 600)
 
 
+def test_require_flags_maps_to_rf_and_exclude_flags_to_ef():
+    """Regression test: real BBOT preset `flags:` is additive ("enable
+    every module with this flag" - confirmed against BBOT's own bundled
+    presets and BBOT 3.0.0 --help EXAMPLES), so forcing a passive-only
+    scan requires `-rf passive` (require-flags), not a preset `flags:`
+    key. See modules/osint_bbot.py for where this is used as a hard,
+    code-level safety net for the SOC Passive profiles."""
+    built = build_bbot_argv("bbot", "example.com", require_flags=["passive"], exclude_flags=["loud", "invasive"])
+    assert built.argv.count("-rf") == 1
+    assert built.argv[built.argv.index("-rf") + 1] == "passive"
+    ef_indexes = [i for i, a in enumerate(built.argv) if a == "-ef"]
+    assert len(ef_indexes) == 2
+    assert {built.argv[i + 1] for i in ef_indexes} == {"loud", "invasive"}
+
+
 def test_argv_is_a_plain_list_never_a_shell_string():
     built = build_bbot_argv("bbot", "example.com")
     assert isinstance(built.argv, list)
