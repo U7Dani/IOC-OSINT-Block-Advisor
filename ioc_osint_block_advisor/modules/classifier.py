@@ -77,6 +77,16 @@ class ClassifiedIOC:
     why_blockable: str = ""
     why_not_blockable: str = ""
     soc_conclusion: str = ""
+    # Enriquecimiento BBOT (opcional): nunca alimenta osint_results
+    # directamente. Ver integrations/bbot/mapper.py.
+    bbot_scan_id: str = ""
+    bbot_status: str = ""
+    bbot_events: list = field(default_factory=list)
+    bbot_relationships: list = field(default_factory=list)
+    related_assets: list = field(default_factory=list)
+    technical_findings: list = field(default_factory=list)
+    bbot_warnings: list = field(default_factory=list)
+    bbot_score_delta: int = 0
 
 
 def _root_parts(domain: str) -> tuple[str, str]:

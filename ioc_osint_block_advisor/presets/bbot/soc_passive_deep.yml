@@ -1,0 +1,36 @@
+# IOC OSINT Block Advisor - BBOT preset: SOC Passive Deep
+#
+# IOC OSINT Block Advisor configuration artifact (MIT), written against
+# BBOT's public preset YAML schema. See NOTICE_BBOT.md.
+#
+# Extends "soc_passive" with deeper passive sources (certificate
+# transparency, passive DNS, historical/wayback, public code repositories,
+# cloud/ASN intelligence) while keeping the same hard guarantee: never
+# contacts the target directly.
+#
+# Like soc_passive.yml, this file intentionally does NOT use a `flags:`
+# key to try to restrict to passive modules - `flags:` is additive in BBOT
+# (confirmed against a real install), so it would risk silently enabling
+# active-but-"safe"-tagged modules. The passive-only guarantee is enforced
+# in code via `-rf passive` (modules/osint_bbot.py).
+
+description: "SOC Passive Deep - fuentes pasivas ampliadas (CT, passive DNS, histórico, repos públicos, cloud/ASN)"
+
+include:
+  - subdomain-enum
+  - cloud-enum
+
+exclude_modules:
+  - portscan
+  - nuclei
+  - http
+  - gowitness
+  - wafw00f
+  - webbrute
+  - webbrute_shortnames
+  - lightfuzz
+  - dnsbrute
+  - dnsbrute_mutations
+
+output_modules:
+  - json

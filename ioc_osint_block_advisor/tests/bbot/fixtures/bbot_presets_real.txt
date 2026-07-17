@@ -1,0 +1,149 @@
+
+### PRESETS ###
+
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| Preset            | Category   | Description                              | # Modules   | Modules                                |
++===================+============+==========================================+=============+========================================+
+| baddns            |            | Check for subdomain takeovers and other  | 1           | baddns                                 |
+|                   |            | DNS issues.                              |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| baddns-heavy      |            | Run all baddns modules and submodules.   | 3           | baddns, baddns_direct, baddns_zone     |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| cloud-enum        |            | Enumerate cloud resources such as        | 0           |                                        |
+|                   |            | storage buckets, etc.                    |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| code-enum         |            | Enumerate Git repositories, Docker       | 0           |                                        |
+|                   |            | images, etc.                             |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| dotnet-audit      | web        | Comprehensive scan for all IIS/.NET      | 8           | ajaxpro, aspnet_bin_exposure,          |
+|                   |            | specific modules and module settings     |             | badsecrets, dotnetnuke, http, telerik, |
+|                   |            |                                          |             | webbrute, webbrute_shortnames          |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| email-enum        |            | Enumerate email addresses from APIs, web | 0           |                                        |
+|                   |            | crawling, etc.                           |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| fast              |            | Scan only the provided targets as fast   | 0           |                                        |
+|                   |            | as possible - no extra discovery         |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| iis-shortnames    | web        | Recursively enumerate IIS shortnames     | 0           |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| kitchen-sink      |            | Everything everywhere all at once        | 7           | baddns, baddns_direct, baddns_zone,    |
+|                   |            |                                          |             | http, hunt, reflected_parameters,      |
+|                   |            |                                          |             | webbrute                               |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| lightfuzz         | web        | Default fuzzing: all 9 submodules (cmdi, | 6           | badsecrets, http, hunt, lightfuzz,     |
+|                   |            | crypto, path, serial, sqli, ssti, xss,   |             | portfilter, reflected_parameters       |
+|                   |            | esi, ssrf) plus companion modules        |             |                                        |
+|                   |            | (badsecrets, hunt,                       |             |                                        |
+|                   |            | reflected_parameters). POST fuzzing      |             |                                        |
+|                   |            | disabled but try_post_as_get enabled, so |             |                                        |
+|                   |            | POST params are retested as GET. Skips   |             |                                        |
+|                   |            | confirmed WAFs.                          |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| lightfuzz-heavy   | web        | Aggressive fuzzing: everything in        | 8           | badsecrets, http, hunt, lightfuzz,     |
+|                   |            | lightfuzz, plus paramminer brute-force   |             | portfilter, reflected_parameters,      |
+|                   |            | parameter discovery (headers, GET        |             | robots, wayback                        |
+|                   |            | params, cookies), POST request fuzzing   |             |                                        |
+|                   |            | enabled, try_get_as_post enabled (GET    |             |                                        |
+|                   |            | params retested as POST), and robots.txt |             |                                        |
+|                   |            | parsing. Still skips confirmed WAFs.     |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| lightfuzz-light   | web        | Minimal fuzzing: only path traversal,    | 3           | http, lightfuzz, portfilter            |
+|                   |            | SQLi, and XSS submodules. No POST        |             |                                        |
+|                   |            | requests. No companion modules. Safest   |             |                                        |
+|                   |            | option for running alongside larger      |             |                                        |
+|                   |            | scans with minimal overhead.             |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| lightfuzz-max     | web        | Maximum fuzzing: everything in           | 8           | badsecrets, http, hunt, lightfuzz,     |
+|                   |            | lightfuzz-heavy, plus the heavy          |             | portfilter, reflected_parameters,      |
+|                   |            | paramminer variant (1-3 letter brute-    |             | robots, wayback                        |
+|                   |            | force on GET params, case mutation on    |             |                                        |
+|                   |            | case-sensitive backends, recycle_words   |             |                                        |
+|                   |            | on all paramminer modules), WAF targets  |             |                                        |
+|                   |            | are no longer skipped, each unique       |             |                                        |
+|                   |            | parameter-value pair is fuzzed           |             |                                        |
+|                   |            | individually (no collapsing), common     |             |                                        |
+|                   |            | headers like X-Forwarded-For are fuzzed  |             |                                        |
+|                   |            | even if not observed, and potential      |             |                                        |
+|                   |            | parameters are speculated from JSON/XML  |             |                                        |
+|                   |            | response bodies. Significantly increases |             |                                        |
+|                   |            | scan time.                               |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| lightfuzz-xss     | web        | XSS-only: enables only the xss submodule | 5           | http, lightfuzz, paramminer_getparams, |
+|                   |            | with paramminer_getparams and            |             | portfilter, reflected_parameters       |
+|                   |            | reflected_parameters. POST disabled, no  |             |                                        |
+|                   |            | query string collapsing. Example of a    |             |                                        |
+|                   |            | focused single-submodule preset.         |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| nuclei            | nuclei     | Run nuclei scans against all discovered  | 3           | http, nuclei, portfilter               |
+|                   |            | targets                                  |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| nuclei-budget     | nuclei     | Run nuclei scans against all discovered  | 3           | http, nuclei, portfilter               |
+|                   |            | targets, using budget mode to look for   |             |                                        |
+|                   |            | low hanging fruit with greatly reduced   |             |                                        |
+|                   |            | number of requests                       |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| nuclei-heavy      | nuclei     | Run nuclei scans against all discovered  | 6           | http, nuclei, portfilter, robots,      |
+|                   |            | targets, allowing for spidering, against |             | urlscan, wayback                       |
+|                   |            | ALL URLs, and with additional discovery  |             |                                        |
+|                   |            | modules.                                 |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| nuclei-technology | nuclei     | Run nuclei scans against all discovered  | 3           | http, nuclei, portfilter               |
+|                   |            | targets, running templates which match   |             |                                        |
+|                   |            | discovered technologies                  |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| paramminer        | web        | Discover new web parameters via brute-   | 3           | http, hunt, reflected_parameters       |
+|                   |            | force, and analyze them with additional  |             |                                        |
+|                   |            | modules                                  |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| paramminer-heavy  | web        | Aggressive paramminer brute-force:       | 3           | http, hunt, reflected_parameters       |
+|                   |            | enables 1-3 letter combination brute-    |             |                                        |
+|                   |            | force on GET parameters and case         |             |                                        |
+|                   |            | mutation (camelCase / Title-case         |             |                                        |
+|                   |            | variants) on case-sensitive backends.    |             |                                        |
+|                   |            | Significantly increases scan time.       |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| spider            |            | Recursive web spider                     | 1           | http                                   |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| spider-heavy      |            | Recursive web spider with more           | 1           | http                                   |
+|                   |            | aggressive settings                      |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| subdomain-enum    |            | Enumerate subdomains via APIs, brute-    | 0           |                                        |
+|                   |            | force                                    |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| tech-detect       |            | Detect technologies via Nuclei, and      | 2           | fingerprintx, nuclei                   |
+|                   |            | FingerprintX                             |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| virtualhost       | web        | Virtual host discovery: subdomain brute- | 1           | virtualhost                            |
+|                   |            | force and mutations against the target   |             |                                        |
+|                   |            | host's Host header / SNI.                |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| virtualhost-heavy | web        | Aggressive virtual host discovery:       | 1           | virtualhost                            |
+|                   |            | everything in virtualhost, plus special- |             |                                        |
+|                   |            | host probing, certificate SAN            |             |                                        |
+|                   |            | extraction, and wordcloud-driven         |             |                                        |
+|                   |            | candidate testing.                       |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| waf-bypass        |            | WAF bypass detection with subdomain      | 2           | http, waf_bypass                       |
+|                   |            | enumeration                              |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| wayback           |            | Discover URLs and interesting archived   | 1           | wayback                                |
+|                   |            | files via the Wayback Machine            |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| wayback-heavy     |            | Full Wayback Machine integration - URL   | 2           | badsecrets, wayback                    |
+|                   |            | discovery, parameter extraction,         |             |                                        |
+|                   |            | archived page retrieval, and interesting |             |                                        |
+|                   |            | file detection                           |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| web               |            | Quick web scan                           | 0           |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| web-heavy         |            | Aggressive web scan                      | 0           |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| web-screenshots   |            | Take screenshots of webpages             | 0           |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| webbrute          | web        | Basic web directory brute-force          | 1           | webbrute                               |
+|                   |            | (surface-level directories only)         |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+
+| webbrute-heavy    | web        | Recursive web directory brute-force      | 3           | http, wayback, webbrute                |
+|                   |            | (aggressive)                             |             |                                        |
++-------------------+------------+------------------------------------------+-------------+----------------------------------------+

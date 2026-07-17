@@ -14,3 +14,6 @@ dist/
 
 ioc_osint_block_advisor/output/*
 !ioc_osint_block_advisor/output/.gitkeep
+
+# Configuración local (no secreta, pero específica de cada máquina) de BBOT.
+ioc_osint_block_advisor/config/bbot_settings.json

@@ -166,9 +166,19 @@ El ejecutable escribe los resultados en una carpeta `output` junto al `.exe`.
 pytest
 ```
 
+## Enriquecimiento BBOT (opcional) - guía técnica
+
+Ver el README raíz del repositorio para la descripción orientada a analista (perfiles, runtimes, privacidad). Esta sección es para quien vaya a extender la integración:
+
+- **Punto de entrada único**: `modules/osint_bbot.py` (`bbot_applicable`, `bbot_target_for`, `collect_bbot_many`). El resto de la app nunca debe importar `integrations.bbot.*` directamente.
+- **Capas**: `integrations/bbot/settings.py` (config no sensible) → `discovery.py` (runtime + inventario dinámico de módulos/presets/output modules) → `command_builder.py` (argv validado) → `runner.py` (subprocess no bloqueante, streaming, timeout, cancelación) → `parser.py` (JSON línea a línea, tolerante) → `mapper.py` (evidencia SOC, límites de score) → `cache.py` → `health.py` → `orchestrator.py` (los une todos).
+- **Añadir un nuevo preset**: crea un YAML en `presets/bbot/` siguiendo el esquema de presets de BBOT (`flags`, `modules`, `exclude_modules`, `output_modules`, `description`) y regístralo en `modules/osint_bbot._PROFILE_PRESET_FILES` si corresponde a un perfil fijo, o dilo al analista para usarlo desde "Full BBOT". `integrations/bbot/command_builder.validate_preset_file` exige que el fichero esté dentro de `presets/bbot/` (o de un directorio personalizado añadido a `BBOTSettings.custom_presets`).
+- **Añadir un nuevo mapper/regla de hallazgo**: edita `integrations/bbot/mapper.POSITIVE_FINDING_RULES` (hallazgos confirmados, con `event_types` y `tag_any` explícitos) o `_CAUTION_KEYWORDS` (infraestructura compartida/legítima). Nunca añadas una regla que marque como "positiva" la sola presencia de un tipo de evento o el nombre de un módulo: exige un tag/evidencia concreta. Todo cambio aquí debe mantener verdes los tests de `tests/bbot/test_mapper.py` y `tests/bbot/test_decision_engine_bbot_regression.py` (estos últimos ejercitan el motor de decisión real, no mocks).
+- **Tests**: todos los tests bajo `tests/bbot/` corren sin red y sin BBOT instalado (`tests/bbot/test_runner.py` usa un script Python como "bbot" falso para probar streaming/timeout/cancelación de verdad).
+
 ## Limitaciones
 
-Este MVP prioriza recomendaciones conservadoras y explicables. OSINT externo puede ser incompleto, rate-limited o no responder. OTX no debe usarse como única fuente para bloqueo. La decisión final debe validarla un analista.
+Este MVP prioriza recomendaciones conservadoras y explicables. OSINT externo puede ser incompleto, rate-limited o no responder. OTX no debe usarse como única fuente para bloqueo. La decisión final debe validarla un analista. El enriquecimiento BBOT es opcional y depende de que el analista instale BBOT (native/WSL/Docker) por su cuenta; sin BBOT instalado, la herramienta funciona exactamente igual que sin esta integración.
 
 ## Allowlists por capas y protección de cliente (Fluidra)
 
